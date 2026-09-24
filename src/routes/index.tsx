@@ -371,6 +371,28 @@ type LiveMessage = {
 };
 
 function normalizeMessages(value: unknown): LiveMessage[] {
+  if (typeof value === "string") {
+    if (!value.trim() || typeof DOMParser === "undefined") return [];
+    const document = new DOMParser().parseFromString(value, "text/html");
+    const candidates = Array.from(document.querySelectorAll("[data], .chat_message, .chat_log, .chat_line, .log, li"));
+    const nodes = candidates.length ? candidates : Array.from(document.body.children);
+
+    return nodes.flatMap((node, index) => {
+      const element = node as HTMLElement;
+      const contentNode = element.querySelector(".chat_message, .chat_content, .message, .content, .chat_text, .log_content");
+      const authorNode = element.querySelector(".user_name, .username, .chat_name, .name");
+      const content = plainText(contentNode?.innerHTML ?? element.innerHTML);
+      if (!content) return [];
+      const author = plainText(authorNode?.textContent) || "Yaarzo";
+      const id =
+        element.dataset.log ??
+        element.dataset.id ??
+        element.id ||
+        `${author}-${index}-${content.slice(0, 24)}`;
+      return [{ id, author, content }];
+    });
+  }
+
   if (!Array.isArray(value)) return [];
   return value.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
@@ -483,12 +505,20 @@ function LiveChat({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, quote: 0 }),
       });
-      const result = (await response.json()) as { sent?: boolean; error?: string };
+      const result = (await response.json()) as { sent?: boolean; log?: unknown; error?: string };
       if (!response.ok || !result.sent) {
         setError(result.error ?? "Message could not be sent.");
         return;
       }
       setMessage("");
+      const sent = normalizeMessages(result.log);
+      if (sent.length) {
+        setMessages((current) => {
+          const map = new Map(current.map((entry) => [entry.id, entry]));
+          for (const entry of sent) map.set(entry.id, entry);
+          return [...map.values()].slice(-150);
+        });
+      }
       await pollMessages();
     } catch {
       setError("CodyChat is unavailable. Please try again.");
