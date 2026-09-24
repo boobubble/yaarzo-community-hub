@@ -5,3 +5,5 @@
 - [x] Build the Yaarzo Phase 1 responsive chat interface
 - [x] Match the uploaded reference screenshots closely
 - [x] Verify desktop and mobile preview
+- [ ] Phase 1B: re-inspect exact CodyChat integration paths
+- [ ] Phase 1B Step 1: connect and verify real registered/guest auth sessions
