@@ -6,4 +6,7 @@
 - [x] Match the uploaded reference screenshots closely
 - [x] Verify desktop and mobile preview
 - [x] Phase 1B: re-inspect exact CodyChat integration paths
-- [ ] Phase 1B Step 1: connect and verify real registered/guest auth sessions — blocked by missing executable CodyChat deployment/database; supplied login handler is ionCube-encrypted
+- [ ] Phase 1B.1: add narrow same-origin guest login, status, logout, and real member-list routes
+- [ ] Phase 1B.1: preserve upstream cookies and request token in an encrypted HttpOnly server session
+- [ ] Phase 1B.1: add the existing-style guest form without redesigning Yaarzo
+- [ ] Phase 1B.1: verify real login, refresh persistence, two-session member presence, and logout
