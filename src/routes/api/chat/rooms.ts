@@ -23,13 +23,31 @@ export const Route = createFileRoute("/api/chat/rooms")({
             headers: codyAjaxHeaders(session),
             body: new URLSearchParams(),
           });
-          if (!response.ok) return Response.json({ error: "CodyChat room list is unavailable." }, { status: 502 });
-          const payload = (await response.json()) as { content?: string; title?: string };
+          const raw = await response.text();
+          let payload: { content?: string; title?: string } | null = null;
+          try {
+            payload = JSON.parse(raw) as { content?: string; title?: string };
+          } catch {
+            // Keep the raw upstream body for server-side diagnostics only.
+          }
+
+          if (!response.ok || !payload) {
+            console.error("[CodyChat rooms] unexpected upstream response", {
+              status: response.status,
+              contentType: response.headers.get("content-type"),
+              body: raw.slice(0, 1000),
+            });
+            return Response.json({ error: "CodyChat room list is unavailable." }, { status: 502 });
+          }
+
           return Response.json(
             { rooms: parseRooms(payload.content ?? ""), title: payload.title ?? "" },
             { headers: { "Cache-Control": "no-store" } },
           );
-        } catch {
+        } catch (error) {
+          console.error("[CodyChat rooms] upstream request failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
           return Response.json({ error: "CodyChat room list is unavailable." }, { status: 502 });
         }
       },
