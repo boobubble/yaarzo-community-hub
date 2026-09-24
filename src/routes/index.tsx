@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { CodyMember } from "@/lib/codychat-adapter";
+import type { CodyMember, CodyRoom } from "@/lib/codychat-adapter";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -351,72 +351,233 @@ function ProfilePanel() {
   );
 }
 
-function EmptyChat({ active }: { active: string }) {
+function plainText(value: unknown) {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/<br\s*\/?\s*>/giu, "\n")
+    .replace(/<[^>]*>/gu, "")
+    .replace(/&nbsp;/giu, " ")
+    .replace(/&amp;/giu, "&")
+    .replace(/&lt;/giu, "<")
+    .replace(/&gt;/giu, ">")
+    .replace(/&quot;/giu, '"')
+    .trim();
+}
+
+type LiveMessage = {
+  id: string;
+  author: string;
+  content: string;
+};
+
+function normalizeMessages(value: unknown): LiveMessage[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== "object") return [];
+    const log = item as Record<string, unknown>;
+    const content = plainText(log.log_content ?? log.content ?? log.message);
+    if (!content) return [];
+    const author = plainText(log.user_name ?? log.username ?? log.name) || "Yaarzo";
+    const id = String(log.log_id ?? log.id ?? `${author}-${index}-${content.slice(0, 24)}`);
+    return [{ id, author, content }];
+  });
+}
+
+function LiveChat({
+  active,
+  guestName,
+  onGuestLogin,
+  onMembersRefresh,
+}: {
+  active: string;
+  guestName: string | undefined;
+  onGuestLogin: () => void;
+  onMembersRefresh: () => void;
+}) {
   const isChat = active === "Chatrooms" || active === "Home";
+  const [rooms, setRooms] = useState<CodyRoom[]>([]);
+  const [roomId, setRoomId] = useState<number>();
+  const [messages, setMessages] = useState<LiveMessage[]>([]);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const loadRooms = useCallback(async () => {
+    if (!guestName || !isChat) return;
+    const response = await fetch("/api/chat/rooms", { cache: "no-store" });
+    if (!response.ok) return;
+    const result = (await response.json()) as { rooms?: CodyRoom[] };
+    if (Array.isArray(result.rooms)) {
+      setRooms(result.rooms);
+      if (!roomId && result.rooms[0]) setRoomId(result.rooms[0].id);
+    }
+  }, [guestName, isChat, roomId]);
+
+  const joinRoom = async (room: CodyRoom) => {
+    if (room.passwordRequired) {
+      setError("Password-protected rooms will be enabled with the password dialog next.");
+      return;
+    }
+    setError("");
+    const response = await fetch("/api/chat/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ room: room.id }),
+    });
+    const result = (await response.json()) as { joined?: boolean; data?: { room_logs?: unknown } ; error?: string };
+    if (!response.ok || !result.joined) {
+      setError(result.error ?? "Could not join this room.");
+      return;
+    }
+    setRoomId(room.id);
+    setMessages(normalizeMessages(result.data?.room_logs));
+    onMembersRefresh();
+  };
+
+  const pollMessages = useCallback(async () => {
+    if (!guestName || !roomId || !isChat) return;
+    try {
+      const params = new URLSearchParams({ room: String(roomId) });
+      const response = await fetch(`/api/chat/messages?${params}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const result = (await response.json()) as { mlogs?: unknown; rdata?: { room_logs?: unknown } };
+      const incoming = normalizeMessages(result.rdata?.room_logs ?? result.mlogs);
+      if (incoming.length) {
+        setMessages((current) => {
+          const map = new Map(current.map((entry) => [entry.id, entry]));
+          for (const entry of incoming) map.set(entry.id, entry);
+          return [...map.values()].slice(-150);
+        });
+      }
+    } catch {
+      // Keep the existing conversation visible during a transient poll failure.
+    }
+  }, [guestName, isChat, roomId]);
+
+  useEffect(() => { void loadRooms(); }, [loadRooms]);
+
+  useEffect(() => {
+    if (!guestName || !roomId || !isChat) return;
+    const selected = rooms.find((room) => room.id === roomId);
+    if (selected) void joinRoom(selected);
+    // Joining is intentionally triggered only when the initial room becomes known.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestName, isChat, rooms.length]);
+
+  useEffect(() => {
+    if (!guestName || !roomId || !isChat) return;
+    void pollMessages();
+    const interval = window.setInterval(() => void pollMessages(), 2500);
+    return () => window.clearInterval(interval);
+  }, [guestName, isChat, pollMessages, roomId]);
+
+  const sendMessage = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const content = message.trim();
+    if (!content || sending || !guestName) return;
+    setSending(true);
+    setError("");
+    try {
+      const response = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, quote: 0 }),
+      });
+      const result = (await response.json()) as { sent?: boolean; error?: string };
+      if (!response.ok || !result.sent) {
+        setError(result.error ?? "Message could not be sent.");
+        return;
+      }
+      setMessage("");
+      await pollMessages();
+    } catch {
+      setError("CodyChat is unavailable. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const selectedRoom = rooms.find((room) => room.id === roomId);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4 sm:px-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-muted-foreground" />
-            <h1 className="truncate text-sm font-bold text-foreground">{isChat ? "Community chat" : active}</h1>
+            <span className={`size-2 rounded-full ${guestName ? "bg-primary" : "bg-muted-foreground"}`} />
+            <h1 className="truncate text-sm font-bold text-foreground">{isChat ? selectedRoom?.name ?? "Community chat" : active}</h1>
           </div>
-          <p className="mt-1 truncate text-xs text-muted-foreground">{isChat ? "Waiting for CodyChat connection" : "Yaarzo social space"}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" aria-label="Search conversation" className="text-muted-foreground">
-            <Search />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="Conversation options" className="text-muted-foreground">
-            <MoreHorizontal />
-          </Button>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {guestName ? (selectedRoom ? `${selectedRoom.online} online` : "Connected to CodyChat") : "Continue as Guest to join live chat"}
+          </p>
         </div>
       </header>
 
-      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-card/70 px-4 scrollbar-none">
-        <span className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-highlight">
-          <Flame className="size-3.5" /> Trending
-        </span>
-        {["Delhi", "Mumbai", "Cricket", "Bollywood", "Travel", "Food", "Music"].map((topic) => (
-          <Button key={topic} variant="outline" size="sm" className="h-7 shrink-0 rounded-full bg-background px-3 text-[10px] text-muted-foreground">
-            {topic}
-          </Button>
-        ))}
-      </div>
-
-      <main className="chat-canvas flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
-        <div className="max-w-sm text-center">
-          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
-            {isChat ? <MessageCircle className="size-7" /> : <Sparkles className="size-7" />}
-          </div>
-          <h2 className="text-lg font-extrabold text-foreground">{isChat ? "Your conversations will appear here" : `${active} is coming to Yaarzo`}</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {isChat
-              ? "No sample messages were added. Your existing rooms and chat history can be connected in the backend phase."
-              : "This is a navigation preview only. No data or activity is being created for this section."}
-          </p>
+      {isChat && guestName && rooms.length ? (
+        <div className="flex h-12 shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-card/70 px-4 scrollbar-none">
+          {rooms.map((room) => (
+            <Button
+              key={room.id}
+              variant={room.id === roomId ? "default" : "outline"}
+              size="sm"
+              onClick={() => void joinRoom(room)}
+              className="h-7 shrink-0 rounded-full px-3 text-[10px]"
+            >
+              {room.name} · {room.online}
+            </Button>
+          ))}
         </div>
+      ) : null}
+
+      <main className="chat-canvas flex min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+        {!isChat ? (
+          <div className="m-auto max-w-sm text-center text-sm text-muted-foreground">{active} is coming to Yaarzo.</div>
+        ) : !guestName ? (
+          <div className="m-auto max-w-sm text-center">
+            <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
+              <MessageCircle className="size-7" />
+            </div>
+            <h2 className="text-lg font-extrabold text-foreground">Join the live conversation</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Use CodyChat guest access to see rooms, members and public messages.</p>
+            <Button className="mt-5" onClick={onGuestLogin}>Continue as Guest</Button>
+          </div>
+        ) : messages.length ? (
+          <div className="mx-auto w-full max-w-4xl space-y-3">
+            {messages.map((entry) => (
+              <div key={entry.id} className="rounded-lg border border-border bg-card px-4 py-3">
+                <p className="text-xs font-bold text-primary">{entry.author}</p>
+                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{entry.content}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="m-auto text-center text-sm text-muted-foreground">Connected. Waiting for live messages…</div>
+        )}
       </main>
 
+      {error ? <p role="alert" className="border-t border-border px-4 py-2 text-xs text-destructive">{error}</p> : null}
       <footer className="shrink-0 border-t border-border bg-card/85 p-3 sm:p-4">
-        <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-md border border-border bg-background p-2 focus-within:border-primary/60">
-          <Button variant="ghost" size="icon" disabled aria-label="Attach a file" className="shrink-0 text-muted-foreground">
-            <Paperclip />
-          </Button>
+        <form onSubmit={sendMessage} className="mx-auto flex max-w-4xl items-end gap-2 rounded-md border border-border bg-background p-2 focus-within:border-primary/60">
+          <Button variant="ghost" size="icon" disabled aria-label="Attach a file" className="shrink-0 text-muted-foreground"><Paperclip /></Button>
           <textarea
-            disabled
+            disabled={!guestName || !isChat}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
             aria-label="Message"
-            placeholder="Connect CodyChat to send a message"
+            placeholder={guestName ? "Write a message…" : "Continue as Guest to send a message"}
             rows={1}
             className="max-h-28 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
-          <Button variant="ghost" size="icon" disabled aria-label="Add media" className="hidden shrink-0 text-muted-foreground sm:inline-flex">
-            <Image />
-          </Button>
-          <Button size="icon" disabled aria-label="Send message" className="shrink-0">
+          <Button size="icon" type="submit" disabled={!guestName || !isChat || !message.trim() || sending} aria-label="Send message" className="shrink-0">
             <Send />
           </Button>
-        </div>
+        </form>
       </footer>
     </div>
   );
@@ -497,7 +658,7 @@ export function YaarzoChat() {
               <Users />
             </Button>
           </div>
-          <EmptyChat active={active} />
+          <LiveChat active={active} guestName={guestName} onGuestLogin={() => setGuestDialogOpen(true)} onMembersRefresh={() => void loadMembers()} />
         </section>
 
         <MembersPanel members={members} loading={membersLoading} />
