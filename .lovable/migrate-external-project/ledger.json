@@ -1,0 +1,19 @@
+{
+  "project": "Yaarzo Phase 1 UI",
+  "source": "CodyChat split code archives",
+  "capabilities": [
+    {"capability":"code","source":"PHP/CSS/JS split archives","outcome":"Recreate the requested Phase 1 interface in the existing Lovable project while retaining source references","status":"ready","next_action":"Implement after plan approval"},
+    {"capability":"schema","source":"MySQL references in config.php/database.php","outcome":"Do not migrate or create schema in Phase 1","status":"pending","next_action":"Await Phase 2 requirements and database export"},
+    {"capability":"records","source":"No SQL/CSV/JSON record export detected","outcome":"No existing records will appear in the preview","status":"pending","next_action":"Await Phase 2 data export"},
+    {"capability":"auth identities","source":"CodyChat login/registration PHP is ionCube encrypted","outcome":"Do not replace or simulate authentication in Phase 1","status":"preserved_external","next_action":"Await Phase 2 auth migration instructions"},
+    {"capability":"authorization","source":"CodyChat rank/permission helpers and encrypted actions","outcome":"Do not recreate permissions in Phase 1","status":"preserved_external","next_action":"Await Phase 2"},
+    {"capability":"uploaded file bytes","source":"Bundled CodyChat image/font/audio archives","outcome":"Use only suitable visual assets needed by the Phase 1 interface","status":"ready","next_action":"Select inspected assets"},
+    {"capability":"external providers","source":"Agora and LiveKit client/server libraries detected","outcome":"Do not connect or reconfigure calling providers in Phase 1","status":"preserved_external","next_action":"Verify credentials and behavior in a later backend phase"},
+    {"capability":"public endpoints","source":"PHP action endpoints","outcome":"Not executable in the TanStack preview; no replacement endpoints in Phase 1","status":"blocked","next_action":"Requires backend migration in a later phase"},
+    {"capability":"callbacks/webhooks","source":"No verified callback inventory from readable files","outcome":"No Phase 1 changes","status":"unverified","next_action":"Inspect during backend migration"},
+    {"capability":"schedules","source":"Cron configuration references detected","outcome":"No Phase 1 changes","status":"unverified","next_action":"Inspect during backend migration"},
+    {"capability":"secrets","source":"Credential-shaped source files excluded from inspection output","outcome":"No secrets requested or added","status":"preserved_external","next_action":"Use secure setup only when later verification requires it"},
+    {"capability":"cutover","source":"Existing CodyChat deployment not provided","outcome":"No cutover in Phase 1","status":"pending","next_action":"Decide after backend migration"},
+    {"capability":"verification","source":"Lovable preview","outcome":"Verify desktop and mobile Phase 1 UI without backend claims","status":"pending","next_action":"Run after implementation"}
+  ]
+}
