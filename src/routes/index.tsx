@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type LucideIcon } from "react";
+import { useState } from "react";
 import {
   Bell,
   Compass,
@@ -8,10 +8,8 @@ import {
   HeartHandshake,
   Home,
   Image,
-  LogIn,
   Menu,
   MessageCircle,
-  Mic2,
   MoreHorizontal,
   Paperclip,
   PenLine,
@@ -50,7 +48,7 @@ export const Route = createFileRoute("/")({
 
 type NavItem = {
   label: string;
-  icon: LucideIcon;
+  icon: typeof Home;
   badge?: string;
 };
 
@@ -76,8 +74,8 @@ const personalNavigation: NavItem[] = [
 function Brand() {
   return (
     <div className="flex h-16 items-center gap-3 border-b border-border px-5">
-      <div className="flex size-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-brand">
-        <MessageCircle className="size-5" aria-hidden="true" />
+      <div className="flex size-9 items-center justify-center rounded-md bg-highlight text-highlight-foreground shadow-brand">
+        <HeartHandshake className="size-5" aria-hidden="true" />
       </div>
       <div>
         <div className="text-xl font-extrabold leading-none text-foreground">Yaarzo</div>
@@ -126,7 +124,7 @@ function LeftSidebar({
   onClose?: () => void;
 }) {
   return (
-    <aside className={`${mobile ? "flex" : "hidden lg:flex"} h-full w-[264px] shrink-0 flex-col border-r border-border bg-sidebar`}>
+    <aside className={`${mobile ? "flex" : "hidden lg:flex"} h-full w-[220px] shrink-0 flex-col border-r border-border bg-sidebar`}>
       <div className="relative">
         <Brand />
         {mobile ? (
@@ -162,7 +160,7 @@ function LeftSidebar({
 
 function MembersPanel({ mobile, onClose }: { mobile?: boolean; onClose?: () => void }) {
   return (
-    <aside className={`${mobile ? "flex" : "hidden xl:flex"} h-full w-[292px] shrink-0 flex-col border-l border-border bg-card`}>
+    <aside className={`${mobile ? "flex" : "hidden xl:flex"} h-full w-[210px] shrink-0 flex-col border-l border-border bg-card`}>
       <header className="flex h-16 items-center justify-between border-b border-border px-5">
         <div>
           <h2 className="font-bold text-foreground">Room members</h2>
@@ -197,6 +195,53 @@ function MembersPanel({ mobile, onClose }: { mobile?: boolean; onClose?: () => v
   );
 }
 
+function ProfilePanel() {
+  return (
+    <aside className="hidden h-full w-[240px] shrink-0 flex-col border-l border-border bg-sidebar 2xl:flex">
+      <header className="flex h-16 items-center justify-between border-b border-border px-4">
+        <p className="text-xs font-bold uppercase text-muted-foreground">Profile</p>
+        <Button variant="ghost" size="icon" aria-label="Profile options" className="size-8 text-muted-foreground">
+          <MoreHorizontal />
+        </Button>
+      </header>
+      <div className="flex flex-1 flex-col items-center justify-center px-5 text-center">
+        <div className="relative mb-4 flex size-20 items-center justify-center rounded-full border-2 border-highlight/60 bg-highlight/10 shadow-highlight">
+          <Users className="size-8 text-highlight" />
+          <span className="absolute bottom-1 right-0 size-3 rounded-full border-2 border-sidebar bg-muted-foreground" />
+        </div>
+        <h2 className="font-extrabold text-foreground">Guest profile</h2>
+        <p className="mt-1 text-xs text-muted-foreground">No CodyChat user selected</p>
+        <Button disabled className="mt-5 w-full bg-primary">View profile</Button>
+        <div className="mt-5 grid w-full grid-cols-3 border-y border-border py-3">
+          {[
+            ["—", "Posts"],
+            ["—", "Friends"],
+            ["—", "Level"],
+          ].map(([value, label]) => (
+            <div key={label} className="text-center">
+              <p className="text-sm font-extrabold text-foreground">{value}</p>
+              <p className="text-[10px] text-muted-foreground">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="border-t border-border p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase text-muted-foreground">Today’s highlights</p>
+          <span className="text-[10px] font-semibold text-primary">Preview</span>
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          {[Image, Flame, PenLine, Trophy].map((Icon, index) => (
+            <div key={index} className="flex aspect-square items-center justify-center rounded-md border border-border bg-secondary text-muted-foreground">
+              <Icon className="size-4" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function EmptyChat({ active }: { active: string }) {
   const isChat = active === "Chatrooms" || active === "Home";
   return (
@@ -218,6 +263,17 @@ function EmptyChat({ active }: { active: string }) {
           </Button>
         </div>
       </header>
+
+      <div className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-border bg-card/70 px-4 scrollbar-none">
+        <span className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-highlight">
+          <Flame className="size-3.5" /> Trending
+        </span>
+        {["Delhi", "Mumbai", "Cricket", "Bollywood", "Travel", "Food", "Music"].map((topic) => (
+          <Button key={topic} variant="outline" size="sm" className="h-7 shrink-0 rounded-full bg-background px-3 text-[10px] text-muted-foreground">
+            {topic}
+          </Button>
+        ))}
+      </div>
 
       <main className="chat-canvas flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
         <div className="max-w-sm text-center">
@@ -278,7 +334,7 @@ function YaarzoChat() {
               <Menu />
             </Button>
             <div className="flex items-center gap-2 font-extrabold">
-              <MessageCircle className="size-5 text-primary" /> Yaarzo
+              <HeartHandshake className="size-5 text-highlight" /> Yaarzo
             </div>
             <Button variant="ghost" size="icon" onClick={() => setMembersOpen(true)} aria-label="Open room members">
               <Users />
@@ -288,6 +344,7 @@ function YaarzoChat() {
         </section>
 
         <MembersPanel />
+        <ProfilePanel />
       </div>
 
       {leftOpen ? (
