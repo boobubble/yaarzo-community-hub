@@ -21,7 +21,7 @@ export const Route = createFileRoute("/api/chat/rooms")({
           const response = await codyFetch("system/panel/room_list.php", {
             method: "POST",
             headers: codyAjaxHeaders(session),
-            body: new URLSearchParams(),
+            body: new URLSearchParams({ token: session.token }),
           });
           const raw = await response.text();
           let payload: { content?: string; title?: string } | null = null;
