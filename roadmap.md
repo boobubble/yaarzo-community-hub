@@ -6,7 +6,7 @@
 - [x] Match the uploaded reference screenshots closely
 - [x] Verify desktop and mobile preview
 - [x] Phase 1B: re-inspect exact CodyChat integration paths
-- [ ] Phase 1B.1: add narrow same-origin guest login, status, logout, and real member-list routes
-- [ ] Phase 1B.1: preserve upstream cookies and request token in an encrypted HttpOnly server session
-- [ ] Phase 1B.1: add the existing-style guest form without redesigning Yaarzo
-- [ ] Phase 1B.1: verify real login, refresh persistence, two-session member presence, and logout
+- [x] Phase 1B.1: add narrow same-origin guest login, status, logout, and real member-list routes
+- [x] Phase 1B.1: preserve upstream cookies and request token in an encrypted HttpOnly server session
+- [x] Phase 1B.1: add the existing-style guest form without redesigning Yaarzo
+- [x] Phase 1B.1: verify real login, refresh persistence, two-session member presence, and logout
