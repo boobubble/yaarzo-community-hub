@@ -197,7 +197,7 @@ function MembersPanel({ mobile, onClose }: { mobile?: boolean; onClose?: () => v
 
 function ProfilePanel() {
   return (
-    <aside className="hidden h-full w-[240px] shrink-0 flex-col border-l border-border bg-sidebar 2xl:flex">
+    <aside className="hidden h-full w-[240px] shrink-0 flex-col border-l border-border bg-sidebar xl:flex">
       <header className="flex h-16 items-center justify-between border-b border-border px-4">
         <p className="text-xs font-bold uppercase text-muted-foreground">Profile</p>
         <Button variant="ghost" size="icon" aria-label="Profile options" className="size-8 text-muted-foreground">
