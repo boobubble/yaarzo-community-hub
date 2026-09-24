@@ -903,7 +903,7 @@ function LiveChat({
 }
 
 export function YaarzoChat() {
-  const { user, ready } = useAuth();
+  const { session, user, ready } = useAuth();
 
   const [active, setActive] = useState("Chatrooms");
   const [leftOpen, setLeftOpen] = useState(false);
@@ -919,46 +919,128 @@ export function YaarzoChat() {
       setMembers([]);
       return;
     }
+
     setMembersLoading(true);
+
     try {
-      const response = await fetch("/api/chat/members", { cache: "no-store" });
+      const response = await fetch("/api/chat/members", {
+        cache: "no-store",
+      });
+
       if (response.status === 401) {
         setGuestName(undefined);
         setMembers([]);
         return;
       }
-      const result = (await response.json()) as { members?: CodyMember[] };
-      if (response.ok && Array.isArray(result.members)) setMembers(result.members);
+
+      const result = (await response.json()) as {
+        members?: CodyMember[];
+      };
+
+      if (response.ok && Array.isArray(result.members)) {
+        setMembers(result.members);
+      }
     } finally {
       setMembersLoading(false);
     }
   }, [guestName]);
 
+  // Restore an existing CodyChat session.
   useEffect(() => {
     let activeRequest = true;
-    void fetch("/api/chat/session", { cache: "no-store" })
+
+    void fetch("/api/chat/session", {
+      cache: "no-store",
+    })
       .then((response) => response.json())
-      .then((result: { authenticated?: boolean; guest?: { nickname?: string } }) => {
-        if (activeRequest && result.authenticated && result.guest?.nickname) setGuestName(result.guest.nickname);
+      .then(
+        (result: {
+          authenticated?: boolean;
+          guest?: { nickname?: string };
+        }) => {
+          if (
+            activeRequest &&
+            result.authenticated &&
+            result.guest?.nickname
+          ) {
+            setGuestName(result.guest.nickname);
+          }
+        },
+      )
+      .catch(() => undefined);
+
+    return () => {
+      activeRequest = false;
+    };
+  }, []);
+
+  // A registered Supabase account gets its CodyChat session
+  // through the server-side Yaarzo Bridge.
+  useEffect(() => {
+    if (!ready || !user || !session?.access_token) return;
+
+    let activeRequest = true;
+
+    void fetch("/api/chat/registered-login", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    })
+      .then(async (response) => {
+        const result = (await response.json()) as {
+          authenticated?: boolean;
+          registered?: { nickname?: string };
+          error?: string;
+        };
+
+        if (
+          activeRequest &&
+          response.ok &&
+          result.authenticated &&
+          result.registered?.nickname
+        ) {
+          setGuestName(result.registered.nickname);
+        }
       })
       .catch(() => undefined);
-    return () => { activeRequest = false; };
-  }, []);
+
+    return () => {
+      activeRequest = false;
+    };
+  }, [ready, session?.access_token, user?.id]);
 
   useEffect(() => {
     if (!guestName) return;
+
     void loadMembers();
-    const interval = window.setInterval(() => void loadMembers(), 30000);
+
+    const interval = window.setInterval(
+      () => void loadMembers(),
+      30000,
+    );
+
     return () => window.clearInterval(interval);
   }, [guestName, loadMembers]);
 
   const logoutGuest = async () => {
-    await fetch("/api/chat/logout", { method: "POST" }).catch(() => undefined);
+    await fetch("/api/chat/logout", {
+      method: "POST",
+    }).catch(() => undefined);
+
     setGuestName(undefined);
     setMembers([]);
   };
 
   const logoutRegistered = async () => {
+    // Clear the CodyChat session as well as the Supabase session.
+    await fetch("/api/chat/logout", {
+      method: "POST",
+    }).catch(() => undefined);
+
+    setGuestName(undefined);
+    setMembers([]);
+
     await supabase.auth.signOut();
   };
 
@@ -984,17 +1066,36 @@ export function YaarzoChat() {
 
         <section className="flex min-w-0 flex-1 flex-col bg-background">
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-3 lg:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setLeftOpen(true)} aria-label="Open navigation">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLeftOpen(true)}
+              aria-label="Open navigation"
+            >
               <Menu />
             </Button>
+
             <div className="flex items-center gap-2 font-extrabold">
-              <HeartHandshake className="size-5 text-highlight" /> Yaarzo
+              <HeartHandshake className="size-5 text-highlight" />
+              Yaarzo
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setMembersOpen(true)} aria-label="Open room members">
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMembersOpen(true)}
+              aria-label="Open room members"
+            >
               <Users />
             </Button>
           </div>
-          <LiveChat active={active} guestName={guestName} onGuestLogin={() => setGuestDialogOpen(true)} onMembersRefresh={() => void loadMembers()} />
+
+          <LiveChat
+            active={active}
+            guestName={guestName}
+            onGuestLogin={() => setGuestDialogOpen(true)}
+            onMembersRefresh={() => void loadMembers()}
+          />
         </section>
 
         <MembersPanel members={members} loading={membersLoading} />
@@ -1003,7 +1104,12 @@ export function YaarzoChat() {
 
       {leftOpen ? (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="absolute inset-0 bg-overlay" onClick={() => setLeftOpen(false)} aria-hidden="true" />
+          <div
+            className="absolute inset-0 bg-overlay"
+            onClick={() => setLeftOpen(false)}
+            aria-hidden="true"
+          />
+
           <div className="relative h-full max-w-[86vw] shadow-2xl">
             <LeftSidebar
               active={active}
@@ -1024,13 +1130,29 @@ export function YaarzoChat() {
 
       {membersOpen ? (
         <div className="fixed inset-0 z-50 flex justify-end xl:hidden">
-          <div className="absolute inset-0 bg-overlay" onClick={() => setMembersOpen(false)} aria-hidden="true" />
+          <div
+            className="absolute inset-0 bg-overlay"
+            onClick={() => setMembersOpen(false)}
+            aria-hidden="true"
+          />
+
           <div className="relative h-full max-w-[88vw] shadow-2xl">
-            <MembersPanel members={members} loading={membersLoading} mobile onClose={() => setMembersOpen(false)} />
+            <MembersPanel
+              members={members}
+              loading={membersLoading}
+              mobile
+              onClose={() => setMembersOpen(false)}
+            />
           </div>
         </div>
       ) : null}
-      <GuestLoginDialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen} onAuthenticated={setGuestName} />
+
+      <GuestLoginDialog
+        open={guestDialogOpen}
+        onOpenChange={setGuestDialogOpen}
+        onAuthenticated={setGuestName}
+      />
+
       <RegisteredAuthDialog
         open={registeredDialogOpen}
         onOpenChange={setRegisteredDialogOpen}
@@ -1038,4 +1160,3 @@ export function YaarzoChat() {
     </div>
   );
 }
-
