@@ -25,7 +25,12 @@ export const Route = createFileRoute("/api/chat/guest-login")({
         if (!validateSameOrigin(request)) return Response.json({ error: "Invalid request origin." }, { status: 403 });
         const secret = process.env["YAARZO_SESSION_ENCRYPTION_KEY"];
         if (!secret) return Response.json({ error: "Guest login is not configured." }, { status: 503 });
-        const input = await request.formData();
+        let input: FormData;
+        try {
+          input = await request.formData();
+        } catch {
+          return Response.json({ error: "Please complete the guest details." }, { status: 400 });
+        }
         const nickname = String(input.get("nickname") ?? "").trim();
         const gender = String(input.get("gender") ?? "");
         const birthDate = String(input.get("birthDate") ?? "");
