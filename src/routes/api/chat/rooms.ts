@@ -81,7 +81,15 @@ export const Route = createFileRoute("/api/chat/rooms")({
             headers: codyAjaxHeaders(session),
             body,
           });
-          const payload = (await response.json()) as { code?: number; data?: unknown };
+          const raw = await response.text();
+          if (response.ok && raw.trim() === "") {
+            return Response.json(
+              { joined: true, room },
+              { headers: { "Cache-Control": "no-store" } },
+            );
+          }
+
+          const payload = JSON.parse(raw) as { code?: number; data?: unknown };
           if (payload.code !== 10) {
             return Response.json(
               { error: payload.code === 5 ? "Incorrect room password." : "CodyChat rejected the room change.", code: payload.code ?? 0 },
@@ -96,4 +104,8 @@ export const Route = createFileRoute("/api/chat/rooms")({
     },
   },
 });
+
+
+
+
 
