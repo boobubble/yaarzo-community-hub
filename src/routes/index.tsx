@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
   Compass,
@@ -39,12 +39,12 @@ import type { CodyMember, CodyRoom } from "@/lib/codychat-adapter";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Yaarzo — Community Chat" },
+      { title: "Yaarzo â€” Community Chat" },
       {
         name: "description",
         content: "Yaarzo community chat, rooms, conversations and social spaces.",
       },
-      { property: "og:title", content: "Yaarzo — Community Chat" },
+      { property: "og:title", content: "Yaarzo â€” Community Chat" },
       {
         property: "og:description",
         content: "Join conversations and explore community spaces on Yaarzo.",
@@ -213,7 +213,7 @@ function MembersPanel({ members, loading, mobile, onClose }: { members: CodyMemb
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold text-foreground">{member.name}</p>
                 <p className="truncate text-[10px] text-muted-foreground">
-                  {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined].filter(Boolean).join(" · ") || "Online"}
+                  {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined].filter(Boolean).join(" Â· ") || "Online"}
                 </p>
               </div>
             </div>
@@ -226,7 +226,7 @@ function MembersPanel({ members, loading, mobile, onClose }: { members: CodyMemb
           </div>
           <h3 className="text-sm font-bold text-foreground">{loading ? "Loading room members" : "Continue as Guest"}</h3>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            {loading ? "Checking CodyChat’s live member list." : "Sign in to view CodyChat’s real online users."}
+            {loading ? "Checking CodyChatâ€™s live member list." : "Sign in to view CodyChatâ€™s real online users."}
           </p>
         </div>
       )}
@@ -296,7 +296,7 @@ function GuestLoginDialog({ open, onOpenChange, onAuthenticated }: { open: boole
           </div>
           {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={submitting || !gender}>
-            {submitting ? "Connecting…" : "Continue as Guest"}
+            {submitting ? "Connectingâ€¦" : "Continue as Guest"}
           </Button>
         </form>
       </DialogContent>
@@ -323,9 +323,9 @@ function ProfilePanel() {
         <Button disabled className="mt-5 w-full bg-primary">View profile</Button>
         <div className="mt-5 grid w-full grid-cols-3 border-y border-border py-3">
           {[
-            ["—", "Posts"],
-            ["—", "Friends"],
-            ["—", "Level"],
+            ["â€”", "Posts"],
+            ["â€”", "Friends"],
+            ["â€”", "Level"],
           ].map(([value, label]) => (
             <div key={label} className="text-center">
               <p className="text-sm font-extrabold text-foreground">{value}</p>
@@ -336,7 +336,7 @@ function ProfilePanel() {
       </div>
       <div className="border-t border-border p-4">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase text-muted-foreground">Today’s highlights</p>
+          <p className="text-[10px] font-bold uppercase text-muted-foreground">Todayâ€™s highlights</p>
           <span className="text-[10px] font-semibold text-primary">Preview</span>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-1.5">
@@ -426,6 +426,16 @@ function LiveChat({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const chatScrollRef = useRef<HTMLElement>(null);
+
+  const scrollChatToBottom = () => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+  };
 
   const loadRooms = useCallback(async () => {
     if (!guestName || !isChat) return;
@@ -523,6 +533,9 @@ function LiveChat({
         });
       }
       await pollMessages();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(scrollChatToBottom);
+      });
     } catch {
       setError("CodyChat is unavailable. Please try again.");
     } finally {
@@ -556,13 +569,13 @@ function LiveChat({
               onClick={() => void joinRoom(room)}
               className="h-7 shrink-0 rounded-full px-3 text-[10px]"
             >
-              {room.name} · {room.online}
+              {room.name} Â· {room.online}
             </Button>
           ))}
         </div>
       ) : null}
 
-      <main className="chat-canvas flex min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+      <main ref={chatScrollRef} className="chat-canvas flex min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
         {!isChat ? (
           <div className="m-auto max-w-sm text-center text-sm text-muted-foreground">{active} is coming to Yaarzo.</div>
         ) : !guestName ? (
@@ -576,15 +589,33 @@ function LiveChat({
           </div>
         ) : messages.length ? (
           <div className="mx-auto w-full max-w-4xl space-y-3">
-            {messages.map((entry) => (
-              <div key={entry.id} className="rounded-lg border border-border bg-card px-4 py-3">
-                <p className="text-xs font-bold text-primary">{entry.author}</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{entry.content}</p>
-              </div>
-            ))}
+            {messages.map((entry) => {
+              const isOwnMessage =
+                entry.author.trim().toLowerCase() === guestName.trim().toLowerCase();
+
+              return (
+                <div
+                  key={entry.id}
+                  className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                >
+                  <div className="max-w-[80%] rounded-lg border border-border bg-card px-4 py-3 sm:max-w-[70%]">
+                    <p
+                      className={`text-xs font-bold text-primary ${
+                        isOwnMessage ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {entry.author}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+                      {entry.content}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
-          <div className="m-auto text-center text-sm text-muted-foreground">Connected. Waiting for live messages…</div>
+          <div className="m-auto text-center text-sm text-muted-foreground">Connected. Waiting for live messagesâ€¦</div>
         )}
       </main>
 
@@ -596,6 +627,7 @@ function LiveChat({
             disabled={!guestName || !isChat}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
+            onFocus={scrollChatToBottom}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -603,7 +635,7 @@ function LiveChat({
               }
             }}
             aria-label="Message"
-            placeholder={guestName ? "Write a message…" : "Continue as Guest to send a message"}
+            placeholder={guestName ? "Write a messageâ€¦" : "Continue as Guest to send a message"}
             rows={1}
             className="max-h-28 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />

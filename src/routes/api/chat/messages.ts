@@ -33,6 +33,7 @@ export const Route = createFileRoute("/api/chat/messages")({
           room: String(integerParam(url, "room")),
           notify: String(integerParam(url, "notify")),
           curset: String(integerParam(url, "curset")),
+          token: session.token,
         });
 
         try {
@@ -110,5 +111,4 @@ export const Route = createFileRoute("/api/chat/messages")({
     },
   },
 });
-
 
