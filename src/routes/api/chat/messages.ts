@@ -71,6 +71,7 @@ export const Route = createFileRoute("/api/chat/messages")({
             body: new URLSearchParams({
               content,
               quote: input.quote == null ? "0" : String(input.quote).slice(0, 64),
+              token: session.token,
             }),
           });
           const raw = await response.text();
@@ -109,3 +110,5 @@ export const Route = createFileRoute("/api/chat/messages")({
     },
   },
 });
+
+
