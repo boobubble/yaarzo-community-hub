@@ -387,8 +387,7 @@ function normalizeMessages(value: unknown): LiveMessage[] {
       const id =
         element.dataset.log ??
         element.dataset.id ??
-        element.id ||
-        `${author}-${index}-${content.slice(0, 24)}`;
+        (element.id || `${author}-${index}-${content.slice(0, 24)}`);
       return [{ id, author, content }];
     });
   }
