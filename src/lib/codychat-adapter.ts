@@ -18,6 +18,16 @@ export type CodyMember = {
   country?: string;
 };
 
+export type CodyRoom = {
+  id: number;
+  name: string;
+  description: string;
+  passwordRequired: boolean;
+  access: number;
+  online: number;
+  icon?: string;
+};
+
 const allowedCookies = new Set(["PHPSESSID", "tc_userid", "tc_utk", "tc_ssid"]);
 
 function base64UrlEncode(bytes: Uint8Array) {
@@ -180,6 +190,36 @@ export function parseMembers(html: string): CodyMember[] {
     });
   }
   return members;
+}
+
+export function parseRooms(html: string): CodyRoom[] {
+  const starts = [...html.matchAll(/<div[^>]+class=(["'])[^"']*\broom_element\b[^"']*\1[^>]+onclick=(["'])switchRoom\((\d+),\s*(\d+),\s*(\d+)\);\2[^>]*>/giu)];
+  return starts.flatMap((match, index) => {
+    const id = Number.parseInt(match[3] ?? "", 10);
+    const passwordRequired = match[4] === "1";
+    const access = Number.parseInt(match[5] ?? "", 10);
+    if (!Number.isFinite(id) || !Number.isFinite(access)) return [];
+    const start = match.index ?? 0;
+    const end = starts[index + 1]?.index ?? html.length;
+    const block = html.slice(start, end);
+    const name = decodeHtml(block.match(/class=(["'])[^"']*\broomtitle\b[^"']*\1[^>]*>([\s\S]*?)<\/div>/iu)?.[2]?.replace(/<[^>]*>/gu, "").trim() ?? "");
+    const description = decodeHtml(block.match(/class=(["'])[^"']*\broomdesc\b[^"']*\1[^>]*>([\s\S]*?)<\/div>/iu)?.[2]?.replace(/<[^>]*>/gu, "").trim() ?? "");
+    const onlineText = block.match(/class=(["'])[^"']*\broom_ccount\b[^"']*\1[^>]*>([\s\S]*?)<\/div>/iu)?.[2]?.replace(/<[^>]*>/gu, "").trim() ?? "0";
+    const online = Number.parseInt(onlineText, 10);
+    const iconValue = block.match(/class=(["'])[^"']*\broom_cicon\b[^"']*\1[^>]*(?:data-src|src)=(["'])(.*?)\2/iu)?.[3];
+    const icon = iconValue ? new URL(decodeHtml(iconValue), `${CODYCHAT_ORIGIN}/`).toString() : undefined;
+    return [{ id, name, description, passwordRequired, access, online: Number.isFinite(online) ? online : 0, ...(icon ? { icon } : {}) }];
+  });
+}
+
+export function codyAjaxHeaders(session: CodySession) {
+  return {
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    Cookie: cookieHeader(session.cookies),
+    Origin: CODYCHAT_ORIGIN,
+    Referer: `${CODYCHAT_ORIGIN}/`,
+    "X-Requested-With": "XMLHttpRequest",
+  };
 }
 
 export function validateSameOrigin(request: Request) {
