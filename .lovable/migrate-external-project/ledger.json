@@ -14,6 +14,6 @@
     {"capability":"schedules","source":"Cron configuration references detected","outcome":"No Phase 1 changes","status":"unverified","next_action":"Inspect during backend migration"},
     {"capability":"secrets","source":"Credential-shaped source files excluded from inspection output","outcome":"No secrets requested or added","status":"preserved_external","next_action":"Use secure setup only when later verification requires it"},
     {"capability":"cutover","source":"Existing CodyChat deployment not provided","outcome":"No cutover in Phase 1","status":"pending","next_action":"Decide after backend migration"},
-    {"capability":"verification","source":"Lovable preview","outcome":"Verify desktop and mobile Phase 1 UI without backend claims","status":"pending","next_action":"Run after implementation"}
+    {"capability":"verification","source":"Lovable preview","outcome":"Desktop and mobile Phase 1 UI verified with navigation and member drawers; no browser errors","status":"verified","next_action":"None for Phase 1"}
   ]
 }
