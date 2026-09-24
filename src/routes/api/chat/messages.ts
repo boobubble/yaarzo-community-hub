@@ -73,12 +73,36 @@ export const Route = createFileRoute("/api/chat/messages")({
               quote: input.quote == null ? "0" : String(input.quote).slice(0, 64),
             }),
           });
-          const payload = (await response.json()) as { code?: number; log?: unknown };
+          const raw = await response.text();
+          let payload: { code?: number; log?: unknown } | null = null;
+          try {
+            payload = JSON.parse(raw) as { code?: number; log?: unknown };
+          } catch {
+            // Keep the raw upstream body for server-side diagnostics only.
+          }
+
+          if (!response.ok || !payload) {
+            console.error("[CodyChat send] unexpected upstream response", {
+              status: response.status,
+              contentType: response.headers.get("content-type"),
+              body: raw.slice(0, 1000),
+            });
+            return Response.json({ error: "CodyChat message send is unavailable." }, { status: 502 });
+          }
+
           if (payload.code !== 1) {
+            console.error("[CodyChat send] message rejected", {
+              status: response.status,
+              code: payload.code ?? 0,
+            });
             return Response.json({ error: "CodyChat rejected the message.", code: payload.code ?? 0 }, { status: 400 });
           }
+
           return Response.json({ sent: true, log: payload.log ?? "" }, { headers: { "Cache-Control": "no-store" } });
-        } catch {
+        } catch (error) {
+          console.error("[CodyChat send] upstream request failed", {
+            message: error instanceof Error ? error.message : String(error),
+          });
           return Response.json({ error: "CodyChat message send is unavailable." }, { status: 502 });
         }
       },
