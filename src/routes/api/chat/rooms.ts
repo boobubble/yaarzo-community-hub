@@ -67,7 +67,7 @@ export const Route = createFileRoute("/api/chat/rooms")({
         const room = Number(input.room);
         if (!Number.isInteger(room) || room <= 0) return Response.json({ error: "Invalid room." }, { status: 400 });
 
-        const body = new URLSearchParams({ room: String(room) });
+        const body = new URLSearchParams({ room: String(room), token: session.token });
         if (input.password) {
           body.set("pass", input.password.slice(0, 128));
           body.set("join_room_pass", "1");
@@ -96,3 +96,4 @@ export const Route = createFileRoute("/api/chat/rooms")({
     },
   },
 });
+
