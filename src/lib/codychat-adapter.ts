@@ -92,7 +92,7 @@ export function updateCookieJar(response: Response, current: Record<string, stri
   const extendedHeaders = response.headers as Headers & { getSetCookie?: () => string[] };
   const values = extendedHeaders.getSetCookie?.() ?? splitSetCookieHeader(response.headers.get("set-cookie") ?? "");
   for (const value of values) {
-    const pair = value.split(";", 1)[0];
+    const pair = value.split(";", 1)[0] ?? "";
     const separator = pair.indexOf("=");
     if (separator < 1) continue;
     const name = pair.slice(0, separator).trim();

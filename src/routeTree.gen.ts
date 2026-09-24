@@ -10,33 +10,89 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiChatGuestLoginRouteImport } from './routes/api/chat/guest-login'
+import { Route as ApiChatLogoutRouteImport } from './routes/api/chat/logout'
+import { Route as ApiChatMembersRouteImport } from './routes/api/chat/members'
+import { Route as ApiChatSessionRouteImport } from './routes/api/chat/session'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatGuestLoginRoute = ApiChatGuestLoginRouteImport.update({
+  id: '/api/chat/guest-login',
+  path: '/api/chat/guest-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatLogoutRoute = ApiChatLogoutRouteImport.update({
+  id: '/api/chat/logout',
+  path: '/api/chat/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatMembersRoute = ApiChatMembersRouteImport.update({
+  id: '/api/chat/members',
+  path: '/api/chat/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatSessionRoute = ApiChatSessionRouteImport.update({
+  id: '/api/chat/session',
+  path: '/api/chat/session',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
+  '/api/chat/logout': typeof ApiChatLogoutRoute
+  '/api/chat/members': typeof ApiChatMembersRoute
+  '/api/chat/session': typeof ApiChatSessionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
+  '/api/chat/logout': typeof ApiChatLogoutRoute
+  '/api/chat/members': typeof ApiChatMembersRoute
+  '/api/chat/session': typeof ApiChatSessionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
+  '/api/chat/logout': typeof ApiChatLogoutRoute
+  '/api/chat/members': typeof ApiChatMembersRoute
+  '/api/chat/session': typeof ApiChatSessionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/api/chat/guest-login'
+    | '/api/chat/logout'
+    | '/api/chat/members'
+    | '/api/chat/session'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/api/chat/guest-login'
+    | '/api/chat/logout'
+    | '/api/chat/members'
+    | '/api/chat/session'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/chat/guest-login'
+    | '/api/chat/logout'
+    | '/api/chat/members'
+    | '/api/chat/session'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiChatGuestLoginRoute: typeof ApiChatGuestLoginRoute
+  ApiChatLogoutRoute: typeof ApiChatLogoutRoute
+  ApiChatMembersRoute: typeof ApiChatMembersRoute
+  ApiChatSessionRoute: typeof ApiChatSessionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +104,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat/guest-login': {
+      id: '/api/chat/guest-login'
+      path: '/api/chat/guest-login'
+      fullPath: '/api/chat/guest-login'
+      preLoaderRoute: typeof ApiChatGuestLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/logout': {
+      id: '/api/chat/logout'
+      path: '/api/chat/logout'
+      fullPath: '/api/chat/logout'
+      preLoaderRoute: typeof ApiChatLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/members': {
+      id: '/api/chat/members'
+      path: '/api/chat/members'
+      fullPath: '/api/chat/members'
+      preLoaderRoute: typeof ApiChatMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/session': {
+      id: '/api/chat/session'
+      path: '/api/chat/session'
+      fullPath: '/api/chat/session'
+      preLoaderRoute: typeof ApiChatSessionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiChatGuestLoginRoute: ApiChatGuestLoginRoute,
+  ApiChatLogoutRoute: ApiChatLogoutRoute,
+  ApiChatMembersRoute: ApiChatMembersRoute,
+  ApiChatSessionRoute: ApiChatSessionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
