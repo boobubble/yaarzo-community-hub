@@ -392,8 +392,12 @@ function normalizeMessages(value: unknown): LiveMessage[] {
     });
   }
 
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item, index) => {
+  const items = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? [value]
+      : [];
+  return items.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
     const log = item as Record<string, unknown>;
     const content = plainText(log.log_content ?? log.content ?? log.message);
