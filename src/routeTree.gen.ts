@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChatroomRouteImport } from './routes/chatroom'
 import { Route as ApiChatGuestLoginRouteImport } from './routes/api/chat/guest-login'
 import { Route as ApiChatLogoutRouteImport } from './routes/api/chat/logout'
 import { Route as ApiChatMembersRouteImport } from './routes/api/chat/members'
@@ -18,6 +19,11 @@ import { Route as ApiChatSessionRouteImport } from './routes/api/chat/session'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatroomRoute = ChatroomRouteImport.update({
+  id: '/chatroom',
+  path: '/chatroom',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatGuestLoginRoute = ApiChatGuestLoginRouteImport.update({
@@ -43,6 +49,7 @@ const ApiChatSessionRoute = ApiChatSessionRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/chatroom': typeof ChatroomRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/chatroom': typeof ChatroomRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/chatroom': typeof ChatroomRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
@@ -67,6 +76,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/chatroom'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
     | '/api/chat/members'
@@ -74,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/chatroom'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
     | '/api/chat/members'
@@ -81,6 +92,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/chatroom'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
     | '/api/chat/members'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChatroomRoute: typeof ChatroomRoute
   ApiChatGuestLoginRoute: typeof ApiChatGuestLoginRoute
   ApiChatLogoutRoute: typeof ApiChatLogoutRoute
   ApiChatMembersRoute: typeof ApiChatMembersRoute
@@ -102,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chatroom': {
+      id: '/chatroom'
+      path: '/chatroom'
+      fullPath: '/chatroom'
+      preLoaderRoute: typeof ChatroomRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat/guest-login': {
@@ -137,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChatroomRoute: ChatroomRoute,
   ApiChatGuestLoginRoute: ApiChatGuestLoginRoute,
   ApiChatLogoutRoute: ApiChatLogoutRoute,
   ApiChatMembersRoute: ApiChatMembersRoute,

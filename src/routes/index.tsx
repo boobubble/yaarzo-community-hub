@@ -133,7 +133,7 @@ function LeftSidebar({
 }: {
   active: string;
   onSelect: (label: string) => void;
-  guestName?: string;
+  guestName: string | undefined;
   onGuestLogin: () => void;
   onLogout: () => void;
   mobile?: boolean;
