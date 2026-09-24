@@ -33,6 +33,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/auth-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CodyMember, CodyRoom } from "@/lib/codychat-adapter";
 
@@ -126,19 +129,29 @@ function LeftSidebar({
   active,
   onSelect,
   guestName,
+  registeredEmail,
+  authReady,
   onGuestLogin,
-  onLogout,
+  onRegisteredLogin,
+  onGuestLogout,
+  onRegisteredLogout,
   mobile,
   onClose,
 }: {
   active: string;
   onSelect: (label: string) => void;
   guestName: string | undefined;
+  registeredEmail: string | undefined;
+  authReady: boolean;
   onGuestLogin: () => void;
-  onLogout: () => void;
+  onRegisteredLogin: () => void;
+  onGuestLogout: () => void;
+  onRegisteredLogout: () => void;
   mobile?: boolean;
   onClose?: () => void;
 }) {
+  const registered = Boolean(registeredEmail);
+
   return (
     <aside className={`${mobile ? "flex" : "hidden lg:flex"} h-full w-[220px] shrink-0 flex-col border-r border-border bg-sidebar`}>
       <div className="relative">
@@ -156,25 +169,66 @@ function LeftSidebar({
         </div>
       </div>
       <Navigation active={active} onSelect={onSelect} />
+
       <div className="border-t border-border p-3">
-        <div className="flex items-center gap-3 rounded-md px-2 py-2">
-          <div className="flex size-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
-            <Users className="size-4" />
+        {registered ? (
+          <div className="flex items-center gap-3 rounded-md px-2 py-2">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
+              <Users className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">{registeredEmail}</p>
+              <p className="truncate text-xs text-muted-foreground">Registered Yaarzo account</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRegisteredLogout}
+              aria-label="Sign out of Yaarzo"
+              className="size-8 text-muted-foreground"
+            >
+              <LogOut />
+            </Button>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-foreground">{guestName ?? "Guest"}</p>
-            <p className="truncate text-xs text-muted-foreground">{guestName ? "Connected to CodyChat" : "Sign in through CodyChat"}</p>
+        ) : guestName ? (
+          <div className="flex items-center gap-3 rounded-md px-2 py-2">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
+              <Users className="size-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">{guestName}</p>
+              <p className="truncate text-xs text-muted-foreground">CodyChat guest</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onGuestLogout}
+              aria-label="Log out guest"
+              className="size-8 text-muted-foreground"
+            >
+              <LogOut />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={guestName ? onLogout : onGuestLogin}
-            aria-label={guestName ? "Log out" : "Continue as guest"}
-            className="size-8 text-muted-foreground"
-          >
-            {guestName ? <LogOut /> : <MoreHorizontal />}
-          </Button>
-        </div>
+        ) : (
+          <div className="space-y-2">
+            <Button
+              type="button"
+              className="w-full"
+              onClick={onRegisteredLogin}
+              disabled={!authReady}
+            >
+              {authReady ? "Sign In / Sign Up" : "Checking account..."}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={onGuestLogin}
+            >
+              Continue as Guest
+            </Button>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -304,6 +358,206 @@ function GuestLoginDialog({ open, onOpenChange, onAuthenticated }: { open: boole
   );
 }
 
+function RegisteredAuthDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [gender, setGender] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setSubmitting(true);
+
+    const data = new FormData(event.currentTarget);
+    const email = String(data.get("email") ?? "").trim();
+    const password = String(data.get("password") ?? "");
+
+    try {
+      if (mode === "signin") {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          setError(signInError.message);
+          return;
+        }
+
+        onOpenChange(false);
+        return;
+      }
+
+      const username = String(data.get("username") ?? "").trim();
+
+      if (!username) {
+        setError("Username is required.");
+        return;
+      }
+
+      if (!gender) {
+        setError("Gender is required.");
+        return;
+      }
+
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username,
+              gender,
+            },
+          },
+        });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      if (signUpData.session) {
+        onOpenChange(false);
+        return;
+      }
+
+      setMessage("Account created. Check your email to confirm your account.");
+    } catch {
+      setError("Authentication is unavailable. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const changeMode = (nextMode: "signin" | "signup") => {
+    setMode(nextMode);
+    setError("");
+    setMessage("");
+    setGender("");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm border-border bg-card">
+        <DialogHeader>
+          <DialogTitle>
+            {mode === "signin" ? "Sign In to Yaarzo" : "Create Yaarzo Account"}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === "signin"
+              ? "Sign in with your registered Yaarzo account."
+              : "Create your registered Yaarzo identity."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mode === "signin" ? "default" : "outline"}
+            onClick={() => changeMode("signin")}
+          >
+            Sign In
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "signup" ? "default" : "outline"}
+            onClick={() => changeMode("signup")}
+          >
+            Sign Up
+          </Button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-4">
+          {mode === "signup" ? (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="registered-username">Username</Label>
+                <Input
+                  id="registered-username"
+                  name="username"
+                  autoComplete="username"
+                  maxLength={64}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Gender</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="registered-email">Email</Label>
+            <Input
+              id="registered-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="registered-password">Password</Label>
+            <Input
+              id="registered-password"
+              name="password"
+              type="password"
+              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              minLength={6}
+              required
+            />
+          </div>
+
+          {error ? (
+            <p role="alert" className="text-xs text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          {message ? (
+            <p className="text-xs text-muted-foreground">
+              {message}
+            </p>
+          ) : null}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={submitting || (mode === "signup" && !gender)}
+          >
+            {submitting
+              ? "Please wait..."
+              : mode === "signin"
+                ? "Sign In"
+                : "Create Account"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 function ProfilePanel() {
   return (
     <aside className="hidden h-full w-[240px] shrink-0 flex-col border-l border-border bg-sidebar xl:flex">
@@ -649,11 +903,14 @@ function LiveChat({
 }
 
 export function YaarzoChat() {
+  const { user, ready } = useAuth();
+
   const [active, setActive] = useState("Chatrooms");
   const [leftOpen, setLeftOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [guestName, setGuestName] = useState<string>();
   const [guestDialogOpen, setGuestDialogOpen] = useState(false);
+  const [registeredDialogOpen, setRegisteredDialogOpen] = useState(false);
   const [members, setMembers] = useState<CodyMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
 
@@ -695,10 +952,14 @@ export function YaarzoChat() {
     return () => window.clearInterval(interval);
   }, [guestName, loadMembers]);
 
-  const logout = async () => {
+  const logoutGuest = async () => {
     await fetch("/api/chat/logout", { method: "POST" }).catch(() => undefined);
     setGuestName(undefined);
     setMembers([]);
+  };
+
+  const logoutRegistered = async () => {
+    await supabase.auth.signOut();
   };
 
   const selectNavigation = (label: string) => {
@@ -709,7 +970,17 @@ export function YaarzoChat() {
   return (
     <div className="dark h-dvh overflow-hidden bg-background text-foreground">
       <div className="flex h-full">
-        <LeftSidebar active={active} onSelect={selectNavigation} guestName={guestName} onGuestLogin={() => setGuestDialogOpen(true)} onLogout={logout} />
+        <LeftSidebar
+          active={active}
+          onSelect={selectNavigation}
+          guestName={guestName}
+          registeredEmail={user?.email}
+          authReady={ready}
+          onGuestLogin={() => setGuestDialogOpen(true)}
+          onRegisteredLogin={() => setRegisteredDialogOpen(true)}
+          onGuestLogout={logoutGuest}
+          onRegisteredLogout={() => void logoutRegistered()}
+        />
 
         <section className="flex min-w-0 flex-1 flex-col bg-background">
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-3 lg:hidden">
@@ -734,7 +1005,19 @@ export function YaarzoChat() {
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div className="absolute inset-0 bg-overlay" onClick={() => setLeftOpen(false)} aria-hidden="true" />
           <div className="relative h-full max-w-[86vw] shadow-2xl">
-            <LeftSidebar active={active} onSelect={selectNavigation} guestName={guestName} onGuestLogin={() => setGuestDialogOpen(true)} onLogout={logout} mobile onClose={() => setLeftOpen(false)} />
+            <LeftSidebar
+              active={active}
+              onSelect={selectNavigation}
+              guestName={guestName}
+              registeredEmail={user?.email}
+              authReady={ready}
+              onGuestLogin={() => setGuestDialogOpen(true)}
+              onRegisteredLogin={() => setRegisteredDialogOpen(true)}
+              onGuestLogout={logoutGuest}
+              onRegisteredLogout={() => void logoutRegistered()}
+              mobile
+              onClose={() => setLeftOpen(false)}
+            />
           </div>
         </div>
       ) : null}
@@ -748,6 +1031,11 @@ export function YaarzoChat() {
         </div>
       ) : null}
       <GuestLoginDialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen} onAuthenticated={setGuestName} />
+      <RegisteredAuthDialog
+        open={registeredDialogOpen}
+        onOpenChange={setRegisteredDialogOpen}
+      />
     </div>
   );
 }
+
