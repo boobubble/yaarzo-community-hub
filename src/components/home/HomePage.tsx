@@ -11,19 +11,11 @@ import { HomeHeroPreview } from "@/components/home/HomeHeroPreview";
 import { HomeJoinDialog } from "@/components/home/HomeJoinDialog";
 import { HomeSeoCopy } from "@/components/home/HomeSeoCopy";
 import { HomeNavAnchor } from "@/components/home/home-shared";
-import { HomeBlog } from "@/components/home/sections/HomeBlog";
-import { HomeCommunities } from "@/components/home/sections/HomeCommunities";
-import { HomeCompetitions } from "@/components/home/sections/HomeCompetitions";
-import { HomeConfessions } from "@/components/home/sections/HomeConfessions";
-import { HomeDiscussions } from "@/components/home/sections/HomeDiscussions";
-import { HomeFeaturedMembers } from "@/components/home/sections/HomeFeaturedMembers";
+import { HomeExploreYaarzo } from "@/components/home/sections/HomeExploreYaarzo";
 import { HomeFeatureGrid, HomeProductStats } from "@/components/home/sections/HomeFeatureGrid";
 import { HomeFinalCta } from "@/components/home/sections/HomeFinalCta";
-import { HomeLatestMembers } from "@/components/home/sections/HomeLatestMembers";
 import { HomeLiveCommunity } from "@/components/home/sections/HomeLiveCommunity";
-import { HomePoetrySeo, HomePoetryTrending } from "@/components/home/sections/HomePoetry";
-import { HomeRecentActivity } from "@/components/home/sections/HomeRecentActivity";
-import { HomeTrendingPosts } from "@/components/home/sections/HomeTrendingPosts";
+import { HomePoetrySeo } from "@/components/home/sections/HomePoetry";
 import { PillAvatar } from "@/components/home/welcome-primitives";
 import { WELCOME_THEME_CSS } from "@/components/home/welcome-theme-css";
 import { useAuth } from "@/contexts/auth-context";
@@ -47,7 +39,7 @@ export function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [joinOpen, setJoinOpen] = useState(false);
-  const [joinInitialView, setJoinInitialView] = useState<HomeJoinView>("guest");
+  const [joinInitialView, setJoinInitialView] = useState<HomeJoinView>("choice");
   const [checkingSession, setCheckingSession] = useState(true);
   const cfg = HOME_LANDING_CONFIG;
 
@@ -61,7 +53,7 @@ export function HomePage() {
   }, []);
 
   const tryEnterChatroom = useCallback(
-    async (view: HomeJoinView = "guest") => {
+    async (view: HomeJoinView = "choice") => {
       if (user) {
         goChatroom();
         return;
@@ -214,7 +206,7 @@ export function HomePage() {
             </button>
             <button
               type="button"
-              onClick={() => void tryEnterChatroom("guest")}
+              onClick={() => void tryEnterChatroom("choice")}
               className={`hidden lg:inline-flex ${headerJoinClass}`}
               style={{
                 background: "linear-gradient(135deg,#8b5cf6,#3b82f6)",
@@ -266,7 +258,7 @@ export function HomePage() {
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                  void tryEnterChatroom("guest");
+                  void tryEnterChatroom("choice");
                 }}
                 className="rounded-xl px-3 py-2.5 text-sm font-bold text-white"
                 style={{
@@ -319,7 +311,7 @@ export function HomePage() {
                 <div className="mt-7 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => void tryEnterChatroom("guest")}
+                    onClick={() => void tryEnterChatroom("choice")}
                     className="inline-flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.03]"
                     style={{
                       background: "linear-gradient(135deg,#8b5cf6,#3b82f6)",
@@ -329,7 +321,7 @@ export function HomePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void tryEnterChatroom("guest")}
+                    onClick={() => void tryEnterChatroom("choice")}
                     className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-6 py-3.5 text-sm font-bold hover:bg-white/[0.08]"
                   >
                     Join Chatroom
@@ -358,17 +350,10 @@ export function HomePage() {
           <HomeFeatureGrid />
           <HomeSeoCopy />
           <HomeLiveCommunity />
-          <HomeTrendingPosts />
-          <HomePoetryTrending />
-          <HomePoetrySeo />
-          <HomeDiscussions />
-          <HomeCommunities />
-          <HomeCompetitions />
-          <HomeFeaturedMembers />
-          <HomeLatestMembers />
-          <HomeConfessions />
-          <HomeRecentActivity />
-          <HomeBlog />
+          <HomeExploreYaarzo />
+          <div className="sr-only">
+            <HomePoetrySeo />
+          </div>
           <HomeFinalCta />
         </main>
       </HomeEntryProvider>

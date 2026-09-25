@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
-export type HomeJoinView = "guest" | "signin" | "signup";
+export type HomeJoinView = "choice" | "guest" | "signin" | "signup";
 
 type HomeEntryContextValue = {
   openJoin: (view: HomeJoinView) => void;
@@ -49,7 +49,7 @@ export function useHomeEntryOptional() {
 export function HomeChatroomCta({
   children,
   className = "",
-  view = "guest",
+  view = "choice",
 }: {
   children: ReactNode;
   className?: string;

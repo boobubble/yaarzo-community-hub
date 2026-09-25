@@ -18,12 +18,14 @@ export function RegisteredAuthPanel({
   initialMode = "signin",
   onSuccess,
   onBack,
+  backLabel = "Back",
   showModeSwitcher = true,
   idPrefix = "registered",
 }: {
   initialMode?: "signin" | "signup";
   onSuccess: () => void;
   onBack?: () => void;
+  backLabel?: string;
   showModeSwitcher?: boolean;
   idPrefix?: string;
 }) {
@@ -175,8 +177,14 @@ export function RegisteredAuthPanel({
           onClick={onBack}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to guest
+          {backLabel}
         </Button>
+      ) : null}
+
+      {!showModeSwitcher && onBack ? (
+        <p className="text-sm font-extrabold">
+          {mode === "signin" ? "Sign In" : "Create Account"}
+        </p>
       ) : null}
 
       {showModeSwitcher ? (

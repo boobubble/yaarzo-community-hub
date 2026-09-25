@@ -65,7 +65,7 @@ export function HomeModuleEmpty({
       <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
         {liveCta ? (
           liveCta.join ? (
-            <HomeChatroomCta className={ctaClass} view={liveCta.view ?? "guest"}>
+            <HomeChatroomCta className={ctaClass} view={liveCta.view ?? "choice"}>
               {liveCta.label}
             </HomeChatroomCta>
           ) : (
