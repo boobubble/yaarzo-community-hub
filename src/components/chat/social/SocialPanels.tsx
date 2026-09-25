@@ -129,7 +129,7 @@ export function FindFriendsPanel({
 }: {
   profiles: Record<string, DirectoryProfile>;
   meId: string;
-  onMessage: (peerId: string) => void;
+  onMessage: (peerId: string, peerLabel?: string) => void;
 }) {
   const [q, setQ] = useState("");
   const social = useSocialGraph();
@@ -159,7 +159,12 @@ export function FindFriendsPanel({
                 <p className="text-[10px] text-muted-foreground">@{p.username} · L{p.level}</p>
               </div>
               <div className="flex shrink-0 gap-1">
-                <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => onMessage(p.id)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-[10px]"
+                  onClick={() => onMessage(p.id, p.display_name || p.username)}
+                >
                   Message
                 </Button>
                 {relation === "none" ? (

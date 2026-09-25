@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   clearSessionCookie,
   codyFetch,
+  codyUserIdFromCookies,
   cookieHeader,
   extractToken,
   isLoggedIn,
@@ -33,8 +34,17 @@ export const Route = createFileRoute("/api/chat/session")({
             );
           }
           const envelope = await sealSession({ ...session, cookies, token }, secret);
+          const codyUserId = codyUserIdFromCookies(cookies);
           return Response.json(
-            { authenticated: true, guest: { nickname: session.nickname } },
+            {
+              authenticated: true,
+              guest: { nickname: session.nickname },
+              cody: {
+                userId: codyUserId,
+                nickname: session.nickname,
+                yaarzoUserId: session.yaarzoUserId ?? null,
+              },
+            },
             { headers: { "Cache-Control": "no-store", "Set-Cookie": sessionCookie(envelope) } },
           );
         } catch {

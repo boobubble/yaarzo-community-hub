@@ -19,6 +19,7 @@ import {
   Radio,
   Search,
   Send,
+  Mail,
   ShieldCheck,
   Sun,
   Trophy,
@@ -42,8 +43,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import {
   DirectMessagesWorkspace,
-  type GuestTarget,
+  type DirectConversation,
 } from "@/components/chat/dm/DirectMessagesWorkspace";
+import { resolveDmRoute } from "@/lib/dm/direct-conversation";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
 import {
   FindFriendsPanel,
@@ -323,7 +325,21 @@ function LeftSidebar({
   );
 }
 
-function MembersPanel({ members, loading, onClose, onSelectMember }: { members: CodyMember[]; loading: boolean; onClose: () => void; onSelectMember: (member: CodyMember) => void }) {
+function MembersPanel({
+  members,
+  loading,
+  selfCodyUserId,
+  onClose,
+  onSelectMember,
+  onMessageMember,
+}: {
+  members: CodyMember[];
+  loading: boolean;
+  selfCodyUserId?: string;
+  onClose: () => void;
+  onSelectMember: (member: CodyMember) => void;
+  onMessageMember: (member: CodyMember) => void;
+}) {
   return (
     <aside className="premium-panel flex h-full w-[202px] shrink-0 flex-col border-l border-border bg-card">
       <header className="flex h-[68px] items-center justify-between border-b border-border px-3.5">
@@ -343,31 +359,60 @@ function MembersPanel({ members, loading, onClose, onSelectMember }: { members: 
       </div>
       {members.length ? (
         <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 scrollbar-none">
-          {members.map((member) => (
-            <button
-              type="button"
-              key={member.id}
-              onClick={() => onSelectMember(member)}
-              aria-label={`Open ${member.name}'s profile`}
-              className="member-row group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <div className="relative size-8 shrink-0">
-                {member.avatar ? (
-                  <img src={member.avatar} alt="" className="size-8 rounded-full border border-border object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="flex size-8 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground"><Users className="size-3.5" /></div>
-                )}
-                <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-success shadow-brand" />
+          {members.map((member) => {
+            const isSelf = selfCodyUserId && member.id === selfCodyUserId;
+            return (
+              <div
+                key={member.id}
+                className="member-row group flex w-full items-center gap-1 rounded-md px-1 py-0.5 hover:bg-secondary"
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelectMember(member)}
+                  aria-label={`Open ${member.name}'s profile`}
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="relative size-8 shrink-0">
+                    {member.avatar ? (
+                      <img
+                        src={member.avatar}
+                        alt=""
+                        className="size-8 rounded-full border border-border object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="flex size-8 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
+                        <Users className="size-3.5" />
+                      </div>
+                    )}
+                    <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-success shadow-brand" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[10px] font-bold text-foreground">{member.name}</p>
+                    <p className="truncate text-[8px] text-muted-foreground">
+                      {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined]
+                        .filter(Boolean)
+                        .join(" · ") || "Online"}
+                      {member.yaarzoUserId ? " · Registered" : ""}
+                    </p>
+                  </div>
+                </button>
+                {!isSelf ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 text-muted-foreground opacity-100 sm:opacity-80 sm:group-hover:opacity-100"
+                    aria-label={`Message ${member.name}`}
+                    title="Message"
+                    onClick={() => onMessageMember(member)}
+                  >
+                    <Mail className="size-3.5" />
+                  </Button>
+                ) : null}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[10px] font-bold text-foreground">{member.name}</p>
-                <p className="truncate text-[8px] text-muted-foreground">
-                  {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined].filter(Boolean).join(" Â· ") || "Online"}
-                </p>
-              </div>
-              <CircleUser className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden="true" />
-            </button>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
@@ -721,29 +766,34 @@ function ProfilePanel({
   resolveProfileByUsername,
   onClose,
   onGuestLogin,
-  onRegisteredMessage,
-  onGuestPrivateMessage,
+  onMessageMember,
+  selfCodyUserId,
 }: {
   target: ProfileTarget;
   guestName: string | undefined;
   registeredUserId?: string;
+  selfCodyUserId?: string;
   resolveProfileByUsername: (username: string) => ReturnType<typeof useProfilesDirectory>["resolveByUsername"];
   onClose: () => void;
   onGuestLogin: () => void;
-  onRegisteredMessage: (peerId: string) => void;
-  onGuestPrivateMessage: (target: GuestTarget) => void;
+  onMessageMember: (member: CodyMember) => void;
 }) {
   const member = target.kind === "member" ? target.member : undefined;
-  const supabaseProfile = member ? resolveProfileByUsername(member.name) : undefined;
+  const supabaseProfile = member?.yaarzoUserId
+    ? resolveProfileByUsername(member.name)
+    : member
+      ? resolveProfileByUsername(member.name)
+      : undefined;
   const title = member ? member.name : guestName ?? "My profile";
   const subtitle = member
     ? [member.gender, member.country].filter(Boolean).join(" Â· ") || "Online in this room"
     : guestName
       ? "Guest Â· CodyChat session"
       : "Not signed in";
-  const canRegisteredDm = !!registeredUserId && !!supabaseProfile && supabaseProfile.id !== registeredUserId;
-  const canGuestPm = !!guestName && !registeredUserId && !!member;
-  const crossBoundary = !!registeredUserId && !!member && !supabaseProfile;
+  const canMessage =
+    !!member &&
+    !!guestName &&
+    (!selfCodyUserId || member.id !== selfCodyUserId);
   return (
     <aside className="premium-panel flex h-full w-[224px] shrink-0 flex-col border-l border-border bg-sidebar">
       <header className="flex h-[68px] items-center justify-between border-b border-border px-3.5">
@@ -767,36 +817,16 @@ function ProfilePanel({
             @{supabaseProfile.username} · Level {supabaseProfile.level}
           </p>
         ) : null}
-        {canRegisteredDm ? (
+        {canMessage ? (
           <Button
             className="accent-button mt-4 h-8 w-full text-[10px]"
             onClick={() => {
-              onRegisteredMessage(supabaseProfile!.id);
+              onMessageMember(member!);
               onClose();
             }}
           >
             Message
           </Button>
-        ) : null}
-        {canGuestPm ? (
-          <Button
-            className="accent-button mt-4 h-8 w-full text-[10px]"
-            onClick={() => {
-              onGuestPrivateMessage({
-                userId: member!.id,
-                userName: member!.name,
-                avatar: member!.avatar,
-              });
-              onClose();
-            }}
-          >
-            Private message
-          </Button>
-        ) : null}
-        {crossBoundary ? (
-          <p className="mt-4 rounded-md border border-dashed border-border px-3 py-2 text-[9px] leading-4 text-muted-foreground">
-            This CodyChat guest cannot be reached via registered Supabase DMs. Use public chat or ask them to sign in.
-          </p>
         ) : null}
         {member ? null : guestName ? (
           <p className="mt-4 rounded-md border border-dashed border-border px-3 py-2 text-[9px] leading-4 text-muted-foreground">
@@ -936,24 +966,24 @@ function EmptyChat({
   guestName,
   registeredUserId,
   profiles,
-  dmPeerId,
-  guestDmTarget,
-  onClearDmTargets,
-  onOpenDmPeer,
+  pendingConversation,
+  onClearPendingConversation,
+  hasCodySession,
   onGuestLogin,
   onMembersRefresh,
+  onOpenSupabaseDm,
 }: {
   active: string;
   controls: PanelControls;
   guestName: string | undefined;
   registeredUserId?: string;
   profiles: Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>;
-  dmPeerId?: string | null;
-  guestDmTarget?: GuestTarget | null;
-  onClearDmTargets?: () => void;
-  onOpenDmPeer?: (peerId: string) => void;
+  pendingConversation?: DirectConversation | null;
+  onClearPendingConversation?: () => void;
+  hasCodySession: boolean;
   onGuestLogin: () => void;
   onMembersRefresh: () => void;
+  onOpenSupabaseDm: (peerSupabaseId: string, peerLabel?: string) => void;
 }) {
   const isChat = active === "Chatrooms" || active === "Home";
   const isDirectMessages = active === "Direct Messages";
@@ -1355,11 +1385,10 @@ function EmptyChat({
           <DirectMessagesWorkspace
             registeredUserId={registeredUserId}
             guestName={guestName}
-            guestOnly={!registeredUserId}
+            hasCodySession={hasCodySession}
             profiles={profiles}
-            initialRegisteredPeerId={dmPeerId}
-            initialGuestTarget={guestDmTarget}
-            onClearInitial={onClearDmTargets}
+            initialConversation={pendingConversation}
+            onClearInitial={onClearPendingConversation}
           />
         ) : isNotifications && registeredUserId ? (
           <NotificationsPanel profiles={profiles} />
@@ -1369,7 +1398,7 @@ function EmptyChat({
           <FindFriendsPanel
             profiles={profiles}
             meId={registeredUserId}
-            onMessage={(peerId) => onOpenDmPeer?.(peerId)}
+            onMessage={(peerId, label) => onOpenSupabaseDm(peerId, label)}
           />
         ) : !isChat ? (
           <div className="m-auto max-w-xs text-center">
@@ -1476,8 +1505,8 @@ export function YaarzoChat() {
   const registeredDm = useRegisteredDmContext();
   const notifications = useNotifications();
   const directory = useProfilesDirectory(!!user);
-  const [dmPeerId, setDmPeerId] = useState<string | null>(null);
-  const [guestDmTarget, setGuestDmTarget] = useState<GuestTarget | null>(null);
+  const [pendingConversation, setPendingConversation] = useState<DirectConversation | null>(null);
+  const [selfCodyUserId, setSelfCodyUserId] = useState<string>();
   const [active, setActive] = useState("Chatrooms");
   const [leftOpen, setLeftOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
@@ -1551,8 +1580,12 @@ export function YaarzoChat() {
         setMembers([]);
         return;
       }
-      const result = (await response.json()) as { members?: CodyMember[] };
+      const result = (await response.json()) as {
+        members?: CodyMember[];
+        self?: { codyUserId?: string };
+      };
       if (response.ok && Array.isArray(result.members)) setMembers(result.members);
+      if (response.ok && result.self?.codyUserId) setSelfCodyUserId(result.self.codyUserId);
     } finally {
       setMembersLoading(false);
     }
@@ -1562,8 +1595,15 @@ export function YaarzoChat() {
     let activeRequest = true;
     void fetch("/api/chat/session", { cache: "no-store" })
       .then((response) => response.json())
-      .then((result: { authenticated?: boolean; guest?: { nickname?: string } }) => {
-        if (activeRequest && result.authenticated && result.guest?.nickname) setGuestName(result.guest.nickname);
+      .then((result: {
+        authenticated?: boolean;
+        guest?: { nickname?: string };
+        cody?: { userId?: string; nickname?: string };
+      }) => {
+        if (!activeRequest || !result.authenticated) return;
+        const nick = result.guest?.nickname ?? result.cody?.nickname;
+        if (nick) setGuestName(nick);
+        if (result.cody?.userId) setSelfCodyUserId(result.cody.userId);
       })
       .catch(() => undefined);
     return () => { activeRequest = false; };
@@ -1632,17 +1672,31 @@ export function YaarzoChat() {
     if (!isDesktop) setLeftOpen(false);
   };
 
-  const openRegisteredDm = (peerId: string) => {
-    setDmPeerId(peerId);
-    setGuestDmTarget(null);
+  const openConversation = (conversation: DirectConversation) => {
+    setPendingConversation(conversation);
     setActive("Direct Messages");
+    if (!isDesktop) {
+      setLeftOpen(false);
+      setMembersOpen(false);
+      setProfile(null);
+    }
   };
 
-  const openGuestDm = (target: GuestTarget) => {
-    setGuestDmTarget(target);
-    setDmPeerId(null);
-    setActive("Direct Messages");
+  const openDmFromMember = (member: CodyMember) => {
+    const route = resolveDmRoute({ supabaseUserId: user?.id }, member);
+    if (!route) return;
+    openConversation(route);
   };
+
+  const openSupabaseDmFromFriend = (peerSupabaseId: string, peerLabel?: string) => {
+    openConversation({
+      backend: "supabase",
+      peerSupabaseId,
+      ...(peerLabel ? { peerLabel } : {}),
+    });
+  };
+
+  const hasCodySession = !!guestName;
 
   const navBadges: Partial<Record<string, number>> = {};
   if (user && registeredDm.totalUnread > 0) navBadges["Direct Messages"] = registeredDm.totalUnread;
@@ -1736,21 +1790,25 @@ export function YaarzoChat() {
             guestName={guestName}
             registeredUserId={user?.id}
             profiles={directory.profiles}
-            dmPeerId={dmPeerId}
-            guestDmTarget={guestDmTarget}
-            onClearDmTargets={() => {
-              setDmPeerId(null);
-              setGuestDmTarget(null);
-            }}
-            onOpenDmPeer={(peerId) => {
-              openRegisteredDm(peerId);
-            }}
+            pendingConversation={pendingConversation}
+            onClearPendingConversation={() => setPendingConversation(null)}
+            hasCodySession={hasCodySession}
             onGuestLogin={() => setGuestDialogOpen(true)}
             onMembersRefresh={() => void loadMembers()}
+            onOpenSupabaseDm={openSupabaseDmFromFriend}
           />
         </section>
 
-        {showMembersInline ? <MembersPanel members={members} loading={membersLoading} onClose={() => setMembersDesktop(false)} onSelectMember={(member) => openProfile({ kind: "member", member })} /> : null}
+        {showMembersInline ? (
+          <MembersPanel
+            members={members}
+            loading={membersLoading}
+            selfCodyUserId={selfCodyUserId}
+            onClose={() => setMembersDesktop(false)}
+            onSelectMember={(member) => openProfile({ kind: "member", member })}
+            onMessageMember={openDmFromMember}
+          />
+        ) : null}
         {showProfileInline && profile ? (
           <ProfilePanel
             target={profile}
@@ -1759,8 +1817,8 @@ export function YaarzoChat() {
             resolveProfileByUsername={directory.resolveByUsername}
             onClose={() => setProfile(null)}
             onGuestLogin={() => setGuestDialogOpen(true)}
-            onRegisteredMessage={openRegisteredDm}
-            onGuestPrivateMessage={openGuestDm}
+            onMessageMember={openDmFromMember}
+            selfCodyUserId={selfCodyUserId}
           />
         ) : null}
       </div>
@@ -1772,7 +1830,14 @@ export function YaarzoChat() {
             {leftOpen ? (
               <LeftSidebar {...sidebarProps} mobile onClose={closeDrawers} />
             ) : membersOpen ? (
-              <MembersPanel members={members} loading={membersLoading} onClose={closeDrawers} onSelectMember={(member) => openProfile({ kind: "member", member })} />
+              <MembersPanel
+                members={members}
+                loading={membersLoading}
+                selfCodyUserId={selfCodyUserId}
+                onClose={closeDrawers}
+                onSelectMember={(member) => openProfile({ kind: "member", member })}
+                onMessageMember={openDmFromMember}
+              />
             ) : profile ? (
               <ProfilePanel
                 target={profile}
@@ -1781,8 +1846,8 @@ export function YaarzoChat() {
                 resolveProfileByUsername={directory.resolveByUsername}
                 onClose={closeDrawers}
                 onGuestLogin={() => setGuestDialogOpen(true)}
-                onRegisteredMessage={openRegisteredDm}
-                onGuestPrivateMessage={openGuestDm}
+                onMessageMember={openDmFromMember}
+                selfCodyUserId={selfCodyUserId}
               />
             ) : null}
           </div>

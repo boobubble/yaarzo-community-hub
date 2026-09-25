@@ -154,6 +154,7 @@ export const Route = createFileRoute("/api/chat/registered-login")({
               token,
               nickname: bridgeResult.username,
               issuedAt: Date.now(),
+              yaarzoUserId: user.id,
             },
             sessionSecret,
           );

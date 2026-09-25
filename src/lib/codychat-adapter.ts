@@ -6,6 +6,8 @@ export type CodySession = {
   token: string;
   nickname: string;
   issuedAt: number;
+  /** Set for registered Bridge sessions (Supabase auth user id). */
+  yaarzoUserId?: string;
 };
 
 export type CodyMember = {
@@ -16,7 +18,14 @@ export type CodyMember = {
   rank?: number;
   level?: number;
   country?: string;
+  /** Supabase profile id when this Cody user is Bridge-linked; null = Cody guest. */
+  yaarzoUserId?: string | null;
 };
+
+export function codyUserIdFromCookies(cookies: Record<string, string>) {
+  const raw = cookies["tc_userid"];
+  return raw ? String(raw).slice(0, 64) : undefined;
+}
 
 export type CodyRoom = {
   id: number;
