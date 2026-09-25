@@ -630,6 +630,17 @@
   box-shadow: 0 0 0 3px #ffffff, 0 0 0 5px #e9d5ff, 0 10px 24px rgba(139, 92, 246, 0.16);
 }
 
+.yaarzo-app-shell {
+  --yaarzo-nav-width: 208px;
+  --yaarzo-members-width: 202px;
+  --yaarzo-profile-width: 224px;
+}
+
+.yaarzo-chat-rail {
+  width: 100%;
+  max-width: none;
+}
+
 .drawer-left { animation: drawer-left-in 210ms ease-out both; }
 .drawer-right { animation: drawer-right-in 210ms ease-out both; }
 .drawer-backdrop { animation: drawer-fade-in 190ms ease-out both; }

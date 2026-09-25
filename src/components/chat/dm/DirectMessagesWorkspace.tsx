@@ -301,7 +301,7 @@ export function DirectMessagesWorkspace({
                 {codyLoading && activeConversation.backend === "codychat" ? (
                   <p className="m-auto text-xs text-muted-foreground">Loading messages…</p>
                 ) : (
-                  <div className="mx-auto w-full max-w-3xl space-y-3">
+                  <div className="yaarzo-chat-rail w-full space-y-3">
                     {threadMessages.map((entry) => {
                       const isOwn = threadIsSupabase
                         ? entry.author_id === registeredUserId

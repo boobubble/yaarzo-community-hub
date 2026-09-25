@@ -11,7 +11,7 @@ export function NotificationsPanel({ profiles }: { profiles: Record<string, Dire
   const { items, loaded, unread, markAllRead, markOne } = useNotifications();
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 py-5">
+    <div className="yaarzo-chat-rail flex h-full w-full flex-col px-4 py-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bell className="size-5 text-pink" />
@@ -70,7 +70,7 @@ export function FriendRequestsPanel({
   const outgoingRows = friendships.filter((f) => f.status === "pending" && f.sender_id === meId);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 py-5">
+    <div className="yaarzo-chat-rail flex h-full w-full flex-col px-4 py-5">
       <div className="mb-4 flex items-center gap-2">
         <Users className="size-5 text-cyan" />
         <h2 className="text-base font-extrabold">Friend Requests</h2>
@@ -143,7 +143,7 @@ export function FindFriendsPanel({
   }, [profiles, q, meId]);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-2xl flex-col px-4 py-5">
+    <div className="yaarzo-chat-rail flex h-full w-full flex-col px-4 py-5">
       <div className="mb-4 flex items-center gap-2">
         <UserPlus className="size-5 text-violet" />
         <h2 className="text-base font-extrabold">Find Friends</h2>

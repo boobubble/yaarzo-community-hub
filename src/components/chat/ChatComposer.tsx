@@ -58,7 +58,7 @@ export function ChatComposer({
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="yaarzo-chat-rail w-full">
       {replyPreview ? (
         <div
           className="mb-2 flex items-start gap-2 rounded-lg border border-primary/35 bg-primary/5 px-2.5 py-2"

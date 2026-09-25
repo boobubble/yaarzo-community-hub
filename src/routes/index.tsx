@@ -1538,7 +1538,7 @@ function EmptyChat({
             </Button>
           </div>
         ) : messages.length ? (
-          <div className="mx-auto w-full max-w-4xl space-y-3">
+          <div className="yaarzo-chat-rail w-full space-y-3">
             {messages.map((entry) => {
               const isOwnMessage =
                 entry.author.trim().toLowerCase() ===
@@ -1878,6 +1878,13 @@ export function YaarzoChat() {
   const showProfileInline = isDesktop && !!profile;
   const drawerOpen = !isDesktop && (leftOpen || membersOpen || !!profile);
 
+  const shellLeftCol = showNavInline ? "var(--yaarzo-nav-width)" : "0px";
+  const shellRightCol = showMembersInline
+    ? "var(--yaarzo-members-width)"
+    : showProfileInline
+      ? "var(--yaarzo-profile-width)"
+      : "0px";
+
   useEffect(() => {
     if (!drawerOpen && !(isDesktop && profile)) return;
     const onKey = (event: KeyboardEvent) => {
@@ -1922,10 +1929,35 @@ export function YaarzoChat() {
 
   return (
     <div className={`${appearance} theme-${theme} h-dvh overflow-hidden bg-background text-foreground transition-colors duration-200`}>
-      <div className="flex h-full">
-        {showNavInline ? <LeftSidebar {...sidebarProps} mobile onClose={() => setNavDesktop(false)} /> : null}
+      <div
+        className={`yaarzo-app-shell h-full min-h-0 overflow-hidden ${
+          isDesktop ? "grid" : "flex"
+        }`}
+        style={
+          isDesktop
+            ? {
+                gridTemplateColumns: `${shellLeftCol} minmax(0, 1fr) ${shellRightCol}`,
+              }
+            : undefined
+        }
+      >
+        {isDesktop ? (
+          <div className="col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden">
+            {showNavInline ? (
+              <LeftSidebar
+                {...sidebarProps}
+                mobile
+                onClose={() => setNavDesktop(false)}
+              />
+            ) : null}
+          </div>
+        ) : null}
 
-        <section className="flex min-w-0 flex-1 flex-col bg-background">
+        <section
+          className={`flex min-w-0 flex-col bg-background ${
+            isDesktop ? "col-start-2 row-start-1 min-h-0" : "min-h-0 flex-1"
+          }`}
+        >
           <EmptyChat
             active={active}
             controls={controls}
@@ -1941,27 +1973,30 @@ export function YaarzoChat() {
           />
         </section>
 
-        {showMembersInline ? (
-          <MembersPanel
-            members={members}
-            loading={membersLoading}
-            selfCodyUserId={selfCodyUserId}
-            onClose={() => setMembersDesktop(false)}
-            onSelectMember={(member) => openProfile({ kind: "member", member })}
-            onMessageMember={openDmFromMember}
-          />
-        ) : null}
-        {showProfileInline && profile ? (
-          <ProfilePanel
-            target={profile}
-            guestName={guestName}
-            registeredUserId={user?.id}
-            resolveProfileByUsername={directory.resolveByUsername}
-            onClose={() => setProfile(null)}
-            onGuestLogin={() => setGuestDialogOpen(true)}
-            onMessageMember={openDmFromMember}
-            selfCodyUserId={selfCodyUserId}
-          />
+        {isDesktop ? (
+          <div className="col-start-3 row-start-1 min-h-0 min-w-0 overflow-hidden">
+            {showMembersInline ? (
+              <MembersPanel
+                members={members}
+                loading={membersLoading}
+                selfCodyUserId={selfCodyUserId}
+                onClose={() => setMembersDesktop(false)}
+                onSelectMember={(member) => openProfile({ kind: "member", member })}
+                onMessageMember={openDmFromMember}
+              />
+            ) : showProfileInline && profile ? (
+              <ProfilePanel
+                target={profile}
+                guestName={guestName}
+                registeredUserId={user?.id}
+                resolveProfileByUsername={directory.resolveByUsername}
+                onClose={() => setProfile(null)}
+                onGuestLogin={() => setGuestDialogOpen(true)}
+                onMessageMember={openDmFromMember}
+                selfCodyUserId={selfCodyUserId}
+              />
+            ) : null}
+          </div>
         ) : null}
       </div>
 
