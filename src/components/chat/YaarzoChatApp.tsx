@@ -1431,7 +1431,7 @@ function EmptyChat({
 
     const interval = window.setInterval(
       () => void pollMessages(),
-      2500,
+      1000,
     );
 
     return () => {
