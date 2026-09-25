@@ -9,6 +9,7 @@ import {
 } from "react";
 import {
   Bell,
+  ChevronDown,
   Compass,
   Crown,
   Flame,
@@ -54,7 +55,7 @@ import {
   DirectMessagesWorkspace,
   type DirectConversation,
 } from "@/components/chat/dm/DirectMessagesWorkspace";
-import { resolveDmRoute } from "@/lib/dm/direct-conversation";
+import { conversationKey, resolveDmRoute } from "@/lib/dm/direct-conversation";
 import { ChatReportDialog } from "@/components/chat/ChatReportDialog";
 import { PublicChatQuotedReply } from "@/components/chat/PublicChatQuotedReply";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
@@ -151,17 +152,34 @@ function Brand() {
   );
 }
 
+type ChatroomNavProps = {
+  rooms: CodyRoom[];
+  activeRoomId?: number;
+  canLoad: boolean;
+  onJoinRoom: (room: CodyRoom) => void;
+  onCloseDrawer?: () => void;
+};
+
 function Navigation({
   active,
   onSelect,
   badges,
+  chatrooms,
 }: {
   active: string;
   onSelect: (label: string) => void;
   badges?: Partial<Record<string, number>>;
+  chatrooms?: ChatroomNavProps;
 }) {
+  const chatActive = active === "Chatrooms" || active === "Home";
+  const [chatroomsExpanded, setChatroomsExpanded] = useState(chatActive);
+
+  useEffect(() => {
+    if (chatActive) setChatroomsExpanded(true);
+  }, [chatActive]);
+
   const renderItem = ({ label, icon: Icon, badge, tone = "violet" }: NavItem) => {
-    const selected = active === label;
+    const selected = active === label || (label === "Chatrooms" && chatActive);
     return (
       <Button
         key={label}
@@ -184,11 +202,73 @@ function Navigation({
     );
   };
 
+  const renderChatroomsItem = (item: NavItem) => {
+    const { label, icon: Icon, tone = "cyan" } = item;
+    const selected = chatActive;
+    return (
+      <div key={label} className="space-y-0.5">
+        <Button
+          variant="ghost"
+          onClick={() => {
+            onSelect("Chatrooms");
+            setChatroomsExpanded((open) => !open);
+          }}
+          className={`nav-row h-8 w-full justify-start gap-2.5 rounded-md px-2.5 text-[11px] font-semibold ${selected ? "active-glow bg-sidebar-accent text-sidebar-primary" : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"}`}
+        >
+          <Icon className={`nav-icon nav-icon-${tone} size-4 ${selected ? "is-selected" : ""}`} aria-hidden="true" />
+          <span className="truncate">{label}</span>
+          <ChevronDown
+            className={`ml-auto size-3.5 shrink-0 transition-transform ${chatroomsExpanded ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
+        </Button>
+        {chatroomsExpanded && chatrooms ? (
+          chatrooms.canLoad ? (
+            <div className="ml-3 max-h-36 space-y-0.5 overflow-y-auto border-l border-sidebar-border pl-2 scrollbar-none">
+              {chatrooms.rooms.length ? (
+                chatrooms.rooms.map((room) => {
+                  const roomSelected = chatrooms.activeRoomId === room.id;
+                  return (
+                    <Button
+                      key={room.id}
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        chatrooms.onJoinRoom(room);
+                        onSelect("Chatrooms");
+                        chatrooms.onCloseDrawer?.();
+                      }}
+                      className={`h-7 w-full justify-start px-2 text-[10px] font-semibold ${
+                        roomSelected
+                          ? "bg-sidebar-accent text-sidebar-primary"
+                          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/50"
+                      }`}
+                    >
+                      <span className="truncate"># {room.name}</span>
+                    </Button>
+                  );
+                })
+              ) : (
+                <p className="px-2 py-1 text-[9px] text-muted-foreground">Loading rooms…</p>
+              )}
+            </div>
+          ) : (
+            <p className="ml-5 py-1 text-[9px] text-muted-foreground">Join chat to browse rooms.</p>
+          )
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-2.5 scrollbar-none" aria-label="Yaarzo navigation">
       <div className="space-y-0.5">{primaryNavigation.slice(0, 4).map(renderItem)}</div>
       <p className="mb-1 mt-2.5 px-2.5 text-[8px] font-extrabold uppercase text-muted-foreground">Community</p>
-      <div className="space-y-0.5">{primaryNavigation.slice(4).map(renderItem)}</div>
+      <div className="space-y-0.5">
+        {primaryNavigation.slice(4).map((item) =>
+          item.label === "Chatrooms" ? renderChatroomsItem(item) : renderItem(item),
+        )}
+      </div>
     </nav>
   );
 }
@@ -210,10 +290,12 @@ function LeftSidebar({
   appearancePreference,
   resolvedAppearance,
   onAppearancePreferenceChange,
+  chatrooms,
 }: {
   active: string;
   onSelect: (label: string) => void;
   navBadges?: Partial<Record<string, number>>;
+  chatrooms?: ChatroomNavProps;
   guestName: string | undefined;
   registered: boolean;
   registeredLabel: string;
@@ -244,7 +326,19 @@ function LeftSidebar({
           <Input aria-label="Search Yaarzo" placeholder="Search rooms, users, postsâ€¦" className="h-8 border-sidebar-border bg-background/55 pl-8 text-[10px]" />
         </div>
       </div>
-      <Navigation active={active} onSelect={onSelect} badges={navBadges} />
+      <Navigation
+        active={active}
+        onSelect={onSelect}
+        badges={navBadges}
+        chatrooms={
+          chatrooms
+            ? {
+                ...chatrooms,
+                onCloseDrawer: mobile ? onClose : chatrooms.onCloseDrawer,
+              }
+            : undefined
+        }
+      />
       <div className="space-y-2 border-t border-sidebar-border p-2.5">
         <div className="flex items-center gap-1.5">
           <ThemePicker value={theme} onChange={onThemeChange} />
@@ -1041,6 +1135,8 @@ function EmptyChat({
   onMembersRefresh,
   onOpenSupabaseDm,
   onOpenConversation,
+  onRoomNavSync,
+  onReturnToLiveChatroom,
 }: {
   active: string;
   controls: PanelControls;
@@ -1055,6 +1151,12 @@ function EmptyChat({
   onMembersRefresh: () => void;
   onOpenSupabaseDm: (peerSupabaseId: string, peerLabel?: string) => void;
   onOpenConversation: (conversation: DirectConversation) => void;
+  onRoomNavSync?: (state: {
+    rooms: CodyRoom[];
+    activeRoomId?: number;
+    joinRoom: (room: CodyRoom) => Promise<void>;
+  }) => void;
+  onReturnToLiveChatroom: () => void;
 }) {
   const registeredDm = useRegisteredDmContext();
   const isChat = active === "Chatrooms" || active === "Home";
@@ -1062,6 +1164,7 @@ function EmptyChat({
   const isNotifications = active === "Notifications";
   const isFindFriends = active === "Find Friends";
   const [codyDmConversations, setCodyDmConversations] = useState<CodyPrivateConversation[]>([]);
+  const [dmActiveConversation, setDmActiveConversation] = useState<DirectConversation | null>(null);
   const [activeMessageActionsId, setActiveMessageActionsId] = useState<string | null>(null);
   const [mediaFlags, setMediaFlags] = useState(mergeMediaConfig(null));
   const media = mergeMediaConfig(mediaFlags);
@@ -1100,6 +1203,24 @@ function EmptyChat({
     () => buildRecentDmStripItems(registeredDm.conversations, codyDmConversations, profiles),
     [registeredDm.conversations, codyDmConversations, profiles],
   );
+
+  const selectedDmStripKey = dmActiveConversation
+    ? conversationKey(dmActiveConversation)
+    : undefined;
+
+  useEffect(() => {
+    if (!pendingConversation) return;
+    setDmActiveConversation(pendingConversation);
+    onClearPendingConversation?.();
+  }, [pendingConversation, onClearPendingConversation]);
+
+  const handleStripConversation = (conversation: DirectConversation) => {
+    if (isDirectMessages) {
+      setDmActiveConversation(conversation);
+      return;
+    }
+    onOpenConversation(conversation);
+  };
 
   useEffect(() => {
     if (!activeMessageActionsId) return;
@@ -1174,7 +1295,7 @@ function EmptyChat({
   }, [messages, isChat, roomId]);
 
   const loadRooms = useCallback(async () => {
-    if (!guestName || !isChat) return;
+    if (!guestName) return;
 
     const response = await fetch("/api/chat/rooms", {
       cache: "no-store",
@@ -1193,51 +1314,58 @@ function EmptyChat({
         setRoomId(result.rooms[0].id);
       }
     }
-  }, [guestName, isChat, roomId]);
+  }, [guestName, roomId]);
 
-  const joinRoom = async (room: CodyRoom) => {
-    if (room.passwordRequired) {
-      setError(
-        "This room is password protected. Password entry will be enabled separately.",
-      );
-      return;
-    }
-
-    setError("");
-
-    try {
-      const response = await fetch("/api/chat/rooms", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          room: room.id,
-        }),
-      });
-
-      const result = (await response.json()) as {
-        joined?: boolean;
-        data?: {
-          room_logs?: unknown;
-        };
-        error?: string;
-      };
-
-      if (!response.ok || !result.joined) {
-        setError(result.error ?? "Could not join this room.");
+  const joinRoom = useCallback(
+    async (room: CodyRoom) => {
+      if (room.passwordRequired) {
+        setError(
+          "This room is password protected. Password entry will be enabled separately.",
+        );
         return;
       }
 
-      setRoomId(room.id);
-      setReplyTo(null);
-      setMessages(normalizeMessages(result.data?.room_logs));
-      onMembersRefresh();
-      scheduleScrollToBottom("auto");
-    } catch {
-      setError("CodyChat is unavailable. Please try again.");
-    }
-  };
+      setError("");
+
+      try {
+        const response = await fetch("/api/chat/rooms", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            room: room.id,
+          }),
+        });
+
+        const result = (await response.json()) as {
+          joined?: boolean;
+          data?: {
+            room_logs?: unknown;
+          };
+          error?: string;
+        };
+
+        if (!response.ok || !result.joined) {
+          setError(result.error ?? "Could not join this room.");
+          return;
+        }
+
+        setRoomId(room.id);
+        setReplyTo(null);
+        setMessages(normalizeMessages(result.data?.room_logs));
+        onMembersRefresh();
+        scheduleScrollToBottom("auto");
+      } catch {
+        setError("CodyChat is unavailable. Please try again.");
+      }
+    },
+    [onMembersRefresh],
+  );
+
+  useEffect(() => {
+    onRoomNavSync?.({ rooms, activeRoomId: roomId, joinRoom });
+  }, [rooms, roomId, joinRoom, onRoomNavSync]);
 
   const pollMessages = useCallback(async () => {
     if (!guestName || !roomId || !isChat) return;
@@ -1460,29 +1588,6 @@ function EmptyChat({
                 ? selectedRoom?.name ?? "Community Chat"
                 : active}
             </h1>
-            {isChat && guestName && rooms.length > 1 ? (
-              <Select
-                value={roomId != null ? String(roomId) : undefined}
-                onValueChange={(value) => {
-                  const room = rooms.find((entry) => String(entry.id) === value);
-                  if (room) void joinRoom(room);
-                }}
-              >
-                <SelectTrigger
-                  aria-label="Switch chat room"
-                  className="h-6 w-[min(9rem,28vw)] border-border bg-secondary/50 px-2 text-[9px]"
-                >
-                  <SelectValue placeholder="Room" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rooms.map((room) => (
-                    <SelectItem key={room.id} value={String(room.id)} className="text-xs">
-                      {room.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
           </div>
 
           <p className="mt-1 truncate text-[11px] text-muted-foreground lg:text-xs">
@@ -1569,13 +1674,34 @@ function EmptyChat({
         </div>
       </header>
 
-      {isChat && hasCodySession ? (
-        <RecentDmStrip items={recentDmStripItems} onOpenConversation={onOpenConversation} />
+      {isDirectMessages ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card/80 px-3 py-2">
+          <p className="text-[12px] font-extrabold text-foreground">Direct Messages</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 shrink-0 text-[10px] font-bold"
+            onClick={onReturnToLiveChatroom}
+          >
+            Live Chatroom
+          </Button>
+        </div>
+      ) : null}
+
+      {(isChat || isDirectMessages) && hasCodySession ? (
+        <RecentDmStrip
+          items={recentDmStripItems}
+          selectedKey={isDirectMessages ? selectedDmStripKey : undefined}
+          onOpenConversation={handleStripConversation}
+        />
       ) : null}
 
       <main
-        ref={chatScrollRef}
-        className="chat-canvas flex min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6"
+        ref={isChat ? chatScrollRef : undefined}
+        className={`chat-canvas flex min-h-0 flex-1 ${
+          isDirectMessages ? "flex-col overflow-hidden p-0" : "overflow-y-auto px-3 py-5 sm:px-6"
+        }`}
       >
         {isDirectMessages ? (
           <DirectMessagesWorkspace
@@ -1583,8 +1709,7 @@ function EmptyChat({
             guestName={guestName}
             hasCodySession={hasCodySession}
             profiles={profiles}
-            initialConversation={pendingConversation}
-            onClearInitial={onClearPendingConversation}
+            activeConversation={dmActiveConversation}
           />
         ) : isNotifications && registeredUserId ? (
           <NotificationsPanel profiles={profiles} />
@@ -1986,6 +2111,15 @@ export function YaarzoChat() {
     if (!isDesktop) setLeftOpen(false);
   };
 
+  const [chatRoomNav, setChatRoomNav] = useState<{
+    rooms: CodyRoom[];
+    activeRoomId?: number;
+    joinRoom: (room: CodyRoom) => Promise<void>;
+  }>({
+    rooms: [],
+    joinRoom: async () => {},
+  });
+
   const openConversation = (conversation: DirectConversation) => {
     setPendingConversation(conversation);
     setActive("Direct Messages");
@@ -2089,6 +2223,12 @@ export function YaarzoChat() {
   const sidebarProps = {
     active,
     onSelect: selectNavigation,
+    chatrooms: {
+      rooms: chatRoomNav.rooms,
+      activeRoomId: chatRoomNav.activeRoomId,
+      onJoinRoom: (room: CodyRoom) => void chatRoomNav.joinRoom(room),
+      canLoad: hasCodySession,
+    },
     guestName,
     registered: !!user,
     registeredLabel: user?.email ?? "Yaarzo Member",
@@ -2147,6 +2287,8 @@ export function YaarzoChat() {
             onMembersRefresh={() => void loadMembers()}
             onOpenSupabaseDm={openSupabaseDmFromFriend}
             onOpenConversation={openConversation}
+            onRoomNavSync={setChatRoomNav}
+            onReturnToLiveChatroom={() => setActive("Chatrooms")}
           />
         </section>
 

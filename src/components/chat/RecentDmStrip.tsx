@@ -3,9 +3,11 @@ import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
 
 export function RecentDmStrip({
   items,
+  selectedKey,
   onOpenConversation,
 }: {
   items: RecentDmStripItem[];
+  selectedKey?: string;
   onOpenConversation: (conversation: DirectConversation) => void;
 }) {
   if (!items.length) {
@@ -23,7 +25,11 @@ export function RecentDmStrip({
           key={item.key}
           type="button"
           onClick={() => onOpenConversation(item.conversation)}
-          className="topic-chip inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/55 px-2.5 text-[10px] font-semibold text-foreground transition hover:bg-secondary"
+          className={`topic-chip inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-semibold transition ${
+            selectedKey === item.key
+              ? "border-primary/60 bg-primary/15 text-foreground"
+              : "border-border bg-secondary/55 text-foreground hover:bg-secondary"
+          }`}
         >
           {item.avatarUrl ? (
             <img
