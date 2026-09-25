@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import {
   codyFetch,
+  codyUserIdFromCookies,
   cookieHeader,
   openSession,
   parseMembers,
   parseRequestCookie,
 } from "@/lib/codychat-adapter";
+import { enrichMembersWithYaarzoIds } from "@/lib/server/member-yaarzo-lookup";
 
 export const Route = createFileRoute("/api/chat/members")({
   server: {
@@ -29,7 +31,20 @@ export const Route = createFileRoute("/api/chat/members")({
             body: new URLSearchParams({ token: session.token }),
           });
           if (!roster.ok) return Response.json({ error: "CodyChat member list is unavailable." }, { status: 502 });
-          return Response.json({ members: parseMembers(await roster.text()) }, { headers: { "Cache-Control": "no-store" } });
+          const parsed = parseMembers(await roster.text());
+          const members = await enrichMembersWithYaarzoIds(parsed);
+          const selfCodyUserId = codyUserIdFromCookies(session.cookies);
+          return Response.json(
+            {
+              members,
+              self: {
+                codyUserId: selfCodyUserId,
+                nickname: session.nickname,
+                yaarzoUserId: session.yaarzoUserId ?? null,
+              },
+            },
+            { headers: { "Cache-Control": "no-store" } },
+          );
         } catch {
           return Response.json({ error: "CodyChat member list is unavailable." }, { status: 502 });
         }

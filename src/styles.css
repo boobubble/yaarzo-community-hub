@@ -546,6 +546,8 @@
 .light.theme-black {
   --background: #ffffff;
   --card: #ffffff;
+  --secondary: #f8f9fc;
+  --muted: #f4f5f8;
   --sidebar: #fcfbff;
   --foreground: #0f172a;
   --card-foreground: #0f172a;
@@ -628,6 +630,17 @@
 }
 .light .profile-ring {
   box-shadow: 0 0 0 3px #ffffff, 0 0 0 5px #e9d5ff, 0 10px 24px rgba(139, 92, 246, 0.16);
+}
+
+.yaarzo-app-shell {
+  --yaarzo-nav-width: 208px;
+  --yaarzo-members-width: 202px;
+  --yaarzo-profile-width: 224px;
+}
+
+.yaarzo-chat-rail {
+  width: 100%;
+  max-width: none;
 }
 
 .drawer-left { animation: drawer-left-in 210ms ease-out both; }
