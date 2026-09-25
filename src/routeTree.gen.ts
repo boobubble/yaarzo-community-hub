@@ -19,6 +19,11 @@ import { Route as ApiChatMessagesRouteImport } from './routes/api/chat/messages'
 import { Route as ApiChatRegisteredLoginRouteImport } from './routes/api/chat/registered-login'
 import { Route as ApiChatRoomsRouteImport } from './routes/api/chat/rooms'
 import { Route as ApiChatSessionRouteImport } from './routes/api/chat/session'
+import { Route as ApiMediaConfigRouteImport } from './routes/api/media/config'
+import { Route as ApiMediaGiphyRouteImport } from './routes/api/media/giphy'
+import { Route as ApiMediaYoutubeSearchRouteImport } from './routes/api/media/youtube-search'
+import { Route as ApiChatPrivateConversationsRouteImport } from './routes/api/chat/private/conversations'
+import { Route as ApiChatPrivateMessagesRouteImport } from './routes/api/chat/private/messages'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +75,32 @@ const ApiChatSessionRoute = ApiChatSessionRouteImport.update({
   path: '/api/chat/session',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaConfigRoute = ApiMediaConfigRouteImport.update({
+  id: '/api/media/config',
+  path: '/api/media/config',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMediaGiphyRoute = ApiMediaGiphyRouteImport.update({
+  id: '/api/media/giphy',
+  path: '/api/media/giphy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMediaYoutubeSearchRoute = ApiMediaYoutubeSearchRouteImport.update({
+  id: '/api/media/youtube-search',
+  path: '/api/media/youtube-search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatPrivateConversationsRoute =
+  ApiChatPrivateConversationsRouteImport.update({
+    id: '/api/chat/private/conversations',
+    path: '/api/chat/private/conversations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiChatPrivateMessagesRoute = ApiChatPrivateMessagesRouteImport.update({
+  id: '/api/chat/private/messages',
+  path: '/api/chat/private/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -82,6 +113,11 @@ export interface FileRoutesByFullPath {
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
   '/api/chat/rooms': typeof ApiChatRoomsRoute
   '/api/chat/session': typeof ApiChatSessionRoute
+  '/api/media/config': typeof ApiMediaConfigRoute
+  '/api/media/giphy': typeof ApiMediaGiphyRoute
+  '/api/media/youtube-search': typeof ApiMediaYoutubeSearchRoute
+  '/api/chat/private/conversations': typeof ApiChatPrivateConversationsRoute
+  '/api/chat/private/messages': typeof ApiChatPrivateMessagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +130,11 @@ export interface FileRoutesByTo {
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
   '/api/chat/rooms': typeof ApiChatRoomsRoute
   '/api/chat/session': typeof ApiChatSessionRoute
+  '/api/media/config': typeof ApiMediaConfigRoute
+  '/api/media/giphy': typeof ApiMediaGiphyRoute
+  '/api/media/youtube-search': typeof ApiMediaYoutubeSearchRoute
+  '/api/chat/private/conversations': typeof ApiChatPrivateConversationsRoute
+  '/api/chat/private/messages': typeof ApiChatPrivateMessagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +148,11 @@ export interface FileRoutesById {
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
   '/api/chat/rooms': typeof ApiChatRoomsRoute
   '/api/chat/session': typeof ApiChatSessionRoute
+  '/api/media/config': typeof ApiMediaConfigRoute
+  '/api/media/giphy': typeof ApiMediaGiphyRoute
+  '/api/media/youtube-search': typeof ApiMediaYoutubeSearchRoute
+  '/api/chat/private/conversations': typeof ApiChatPrivateConversationsRoute
+  '/api/chat/private/messages': typeof ApiChatPrivateMessagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +167,11 @@ export interface FileRouteTypes {
     | '/api/chat/registered-login'
     | '/api/chat/rooms'
     | '/api/chat/session'
+    | '/api/media/config'
+    | '/api/media/giphy'
+    | '/api/media/youtube-search'
+    | '/api/chat/private/conversations'
+    | '/api/chat/private/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +184,11 @@ export interface FileRouteTypes {
     | '/api/chat/registered-login'
     | '/api/chat/rooms'
     | '/api/chat/session'
+    | '/api/media/config'
+    | '/api/media/giphy'
+    | '/api/media/youtube-search'
+    | '/api/chat/private/conversations'
+    | '/api/chat/private/messages'
   id:
     | '__root__'
     | '/'
@@ -145,6 +201,11 @@ export interface FileRouteTypes {
     | '/api/chat/registered-login'
     | '/api/chat/rooms'
     | '/api/chat/session'
+    | '/api/media/config'
+    | '/api/media/giphy'
+    | '/api/media/youtube-search'
+    | '/api/chat/private/conversations'
+    | '/api/chat/private/messages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +219,11 @@ export interface RootRouteChildren {
   ApiChatRegisteredLoginRoute: typeof ApiChatRegisteredLoginRoute
   ApiChatRoomsRoute: typeof ApiChatRoomsRoute
   ApiChatSessionRoute: typeof ApiChatSessionRoute
+  ApiMediaConfigRoute: typeof ApiMediaConfigRoute
+  ApiMediaGiphyRoute: typeof ApiMediaGiphyRoute
+  ApiMediaYoutubeSearchRoute: typeof ApiMediaYoutubeSearchRoute
+  ApiChatPrivateConversationsRoute: typeof ApiChatPrivateConversationsRoute
+  ApiChatPrivateMessagesRoute: typeof ApiChatPrivateMessagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +298,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media/config': {
+      id: '/api/media/config'
+      path: '/api/media/config'
+      fullPath: '/api/media/config'
+      preLoaderRoute: typeof ApiMediaConfigRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/media/giphy': {
+      id: '/api/media/giphy'
+      path: '/api/media/giphy'
+      fullPath: '/api/media/giphy'
+      preLoaderRoute: typeof ApiMediaGiphyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/media/youtube-search': {
+      id: '/api/media/youtube-search'
+      path: '/api/media/youtube-search'
+      fullPath: '/api/media/youtube-search'
+      preLoaderRoute: typeof ApiMediaYoutubeSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/private/conversations': {
+      id: '/api/chat/private/conversations'
+      path: '/api/chat/private/conversations'
+      fullPath: '/api/chat/private/conversations'
+      preLoaderRoute: typeof ApiChatPrivateConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/private/messages': {
+      id: '/api/chat/private/messages'
+      path: '/api/chat/private/messages'
+      fullPath: '/api/chat/private/messages'
+      preLoaderRoute: typeof ApiChatPrivateMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -246,6 +347,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRegisteredLoginRoute: ApiChatRegisteredLoginRoute,
   ApiChatRoomsRoute: ApiChatRoomsRoute,
   ApiChatSessionRoute: ApiChatSessionRoute,
+  ApiMediaConfigRoute: ApiMediaConfigRoute,
+  ApiMediaGiphyRoute: ApiMediaGiphyRoute,
+  ApiMediaYoutubeSearchRoute: ApiMediaYoutubeSearchRoute,
+  ApiChatPrivateConversationsRoute: ApiChatPrivateConversationsRoute,
+  ApiChatPrivateMessagesRoute: ApiChatPrivateMessagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

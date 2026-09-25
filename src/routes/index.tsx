@@ -39,7 +39,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChatComposer } from "@/components/chat/ChatComposer";
+import {
+  DirectMessagesWorkspace,
+  type GuestTarget,
+} from "@/components/chat/dm/DirectMessagesWorkspace";
+import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
+import {
+  FindFriendsPanel,
+  FriendRequestsPanel,
+  NotificationsPanel,
+} from "@/components/chat/social/SocialPanels";
 import type { CodyMember } from "@/lib/codychat-adapter";
+import { mergeMediaConfig } from "@/lib/media/media-providers-config";
+import { useProfilesDirectory } from "@/lib/profiles/use-profiles-directory";
+import { useNotifications } from "@/lib/notifications/notifications-provider";
+import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -150,7 +165,15 @@ function Brand() {
   );
 }
 
-function Navigation({ active, onSelect }: { active: string; onSelect: (label: string) => void }) {
+function Navigation({
+  active,
+  onSelect,
+  badges,
+}: {
+  active: string;
+  onSelect: (label: string) => void;
+  badges?: Partial<Record<string, number>>;
+}) {
   const renderItem = ({ label, icon: Icon, badge, tone = "violet" }: NavItem) => {
     const selected = active === label;
     return (
@@ -162,7 +185,15 @@ function Navigation({ active, onSelect }: { active: string; onSelect: (label: st
       >
         <Icon className={`nav-icon nav-icon-${tone} size-4 ${selected ? "is-selected" : ""}`} aria-hidden="true" />
         <span className="truncate">{label}</span>
-        {badge ? <span className="ml-auto rounded-full bg-alert px-2 py-0.5 text-[10px] text-alert-foreground shadow-alert">{badge}</span> : null}
+        {badge ? (
+          <span className="ml-auto rounded-full bg-alert px-2 py-0.5 text-[10px] text-alert-foreground shadow-alert">
+            {badge}
+          </span>
+        ) : badges?.[label] ? (
+          <span className="ml-auto rounded-full bg-alert px-2 py-0.5 text-[10px] text-alert-foreground shadow-alert">
+            {badges[label]}
+          </span>
+        ) : null}
       </Button>
     );
   };
@@ -181,6 +212,7 @@ function Navigation({ active, onSelect }: { active: string; onSelect: (label: st
 function LeftSidebar({
   active,
   onSelect,
+  navBadges,
   guestName,
   registered,
   registeredLabel,
@@ -196,6 +228,7 @@ function LeftSidebar({
 }: {
   active: string;
   onSelect: (label: string) => void;
+  navBadges?: Partial<Record<string, number>>;
   guestName: string | undefined;
   registered: boolean;
   registeredLabel: string;
@@ -225,7 +258,7 @@ function LeftSidebar({
           <Input aria-label="Search Yaarzo" placeholder="Search rooms, users, postsâ€¦" className="h-8 border-sidebar-border bg-background/55 pl-8 text-[10px]" />
         </div>
       </div>
-      <Navigation active={active} onSelect={onSelect} />
+      <Navigation active={active} onSelect={onSelect} badges={navBadges} />
       <div className="space-y-2 border-t border-sidebar-border p-2.5">
         <div className="flex items-center gap-1.5">
           <ThemePicker value={theme} onChange={onThemeChange} />
@@ -681,14 +714,36 @@ function GuestLoginDialog({ open, onOpenChange, onAuthenticated }: { open: boole
 
 type ProfileTarget = { kind: "self" } | { kind: "member"; member: CodyMember };
 
-function ProfilePanel({ target, guestName, onClose, onGuestLogin }: { target: ProfileTarget; guestName: string | undefined; onClose: () => void; onGuestLogin: () => void }) {
+function ProfilePanel({
+  target,
+  guestName,
+  registeredUserId,
+  resolveProfileByUsername,
+  onClose,
+  onGuestLogin,
+  onRegisteredMessage,
+  onGuestPrivateMessage,
+}: {
+  target: ProfileTarget;
+  guestName: string | undefined;
+  registeredUserId?: string;
+  resolveProfileByUsername: (username: string) => ReturnType<typeof useProfilesDirectory>["resolveByUsername"];
+  onClose: () => void;
+  onGuestLogin: () => void;
+  onRegisteredMessage: (peerId: string) => void;
+  onGuestPrivateMessage: (target: GuestTarget) => void;
+}) {
   const member = target.kind === "member" ? target.member : undefined;
+  const supabaseProfile = member ? resolveProfileByUsername(member.name) : undefined;
   const title = member ? member.name : guestName ?? "My profile";
   const subtitle = member
     ? [member.gender, member.country].filter(Boolean).join(" Â· ") || "Online in this room"
     : guestName
       ? "Guest Â· CodyChat session"
       : "Not signed in";
+  const canRegisteredDm = !!registeredUserId && !!supabaseProfile && supabaseProfile.id !== registeredUserId;
+  const canGuestPm = !!guestName && !registeredUserId && !!member;
+  const crossBoundary = !!registeredUserId && !!member && !supabaseProfile;
   return (
     <aside className="premium-panel flex h-full w-[224px] shrink-0 flex-col border-l border-border bg-sidebar">
       <header className="flex h-[68px] items-center justify-between border-b border-border px-3.5">
@@ -707,6 +762,42 @@ function ProfilePanel({ target, guestName, onClose, onGuestLogin }: { target: Pr
         </div>
         <h2 className="max-w-full truncate text-sm font-extrabold text-foreground">{title}</h2>
         <p className="mt-1 text-[9px] text-muted-foreground">{subtitle}</p>
+        {supabaseProfile ? (
+          <p className="mt-1 text-[9px] text-muted-foreground">
+            @{supabaseProfile.username} · Level {supabaseProfile.level}
+          </p>
+        ) : null}
+        {canRegisteredDm ? (
+          <Button
+            className="accent-button mt-4 h-8 w-full text-[10px]"
+            onClick={() => {
+              onRegisteredMessage(supabaseProfile!.id);
+              onClose();
+            }}
+          >
+            Message
+          </Button>
+        ) : null}
+        {canGuestPm ? (
+          <Button
+            className="accent-button mt-4 h-8 w-full text-[10px]"
+            onClick={() => {
+              onGuestPrivateMessage({
+                userId: member!.id,
+                userName: member!.name,
+                avatar: member!.avatar,
+              });
+              onClose();
+            }}
+          >
+            Private message
+          </Button>
+        ) : null}
+        {crossBoundary ? (
+          <p className="mt-4 rounded-md border border-dashed border-border px-3 py-2 text-[9px] leading-4 text-muted-foreground">
+            This CodyChat guest cannot be reached via registered Supabase DMs. Use public chat or ask them to sign in.
+          </p>
+        ) : null}
         {member ? null : guestName ? (
           <p className="mt-4 rounded-md border border-dashed border-border px-3 py-2 text-[9px] leading-4 text-muted-foreground">
             Profile editing will be available once registered accounts are connected.
@@ -843,16 +934,41 @@ function EmptyChat({
   active,
   controls,
   guestName,
+  registeredUserId,
+  profiles,
+  dmPeerId,
+  guestDmTarget,
+  onClearDmTargets,
+  onOpenDmPeer,
   onGuestLogin,
   onMembersRefresh,
 }: {
   active: string;
   controls: PanelControls;
   guestName: string | undefined;
+  registeredUserId?: string;
+  profiles: Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>;
+  dmPeerId?: string | null;
+  guestDmTarget?: GuestTarget | null;
+  onClearDmTargets?: () => void;
+  onOpenDmPeer?: (peerId: string) => void;
   onGuestLogin: () => void;
   onMembersRefresh: () => void;
 }) {
   const isChat = active === "Chatrooms" || active === "Home";
+  const isDirectMessages = active === "Direct Messages";
+  const isNotifications = active === "Notifications";
+  const isFriendRequests = active === "Friend Requests";
+  const isFindFriends = active === "Find Friends";
+  const [mediaFlags, setMediaFlags] = useState(mergeMediaConfig(null));
+  const media = mergeMediaConfig(mediaFlags);
+
+  useEffect(() => {
+    void fetch("/api/media/config")
+      .then((r) => r.json())
+      .then((json) => setMediaFlags({ youtube: json.youtube, giphy: json.giphy }))
+      .catch(() => undefined);
+  }, []);
   const iconBtn =
     "size-8 text-muted-foreground data-[on=true]:bg-secondary data-[on=true]:text-primary";
 
@@ -1023,13 +1139,14 @@ function EmptyChat({
   }, [guestName, isChat, pollMessages, roomId]);
 
   const sendMessage = async (
-    event: FormEvent<HTMLFormElement>,
+    event?: FormEvent<HTMLFormElement>,
+    overrideContent?: string,
   ) => {
-    event.preventDefault();
+    event?.preventDefault();
 
-    const content = message.trim();
+    const content = (overrideContent ?? message).trim();
 
-    if (!content || sending || !guestName || !isChat) return;
+    if (!content || sending || !guestName || !isChat) return false;
 
     setSending(true);
     setError("");
@@ -1056,7 +1173,7 @@ function EmptyChat({
         setError(
           result.error ?? "Message could not be sent.",
         );
-        return;
+        return false;
       }
 
       setMessage("");
@@ -1082,8 +1199,10 @@ function EmptyChat({
       requestAnimationFrame(() => {
         requestAnimationFrame(scrollChatToBottom);
       });
+      return true;
     } catch {
       setError("CodyChat is unavailable. Please try again.");
+      return false;
     } finally {
       setSending(false);
     }
@@ -1232,14 +1351,34 @@ function EmptyChat({
         ref={chatScrollRef}
         className="chat-canvas flex min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6"
       >
-        {!isChat ? (
+        {isDirectMessages ? (
+          <DirectMessagesWorkspace
+            registeredUserId={registeredUserId}
+            guestName={guestName}
+            guestOnly={!registeredUserId}
+            profiles={profiles}
+            initialRegisteredPeerId={dmPeerId}
+            initialGuestTarget={guestDmTarget}
+            onClearInitial={onClearDmTargets}
+          />
+        ) : isNotifications && registeredUserId ? (
+          <NotificationsPanel profiles={profiles} />
+        ) : isFriendRequests && registeredUserId ? (
+          <FriendRequestsPanel profiles={profiles} meId={registeredUserId} />
+        ) : isFindFriends && registeredUserId ? (
+          <FindFriendsPanel
+            profiles={profiles}
+            meId={registeredUserId}
+            onMessage={(peerId) => onOpenDmPeer?.(peerId)}
+          />
+        ) : !isChat ? (
           <div className="m-auto max-w-xs text-center">
             <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-xl border border-primary/45 bg-primary/10 text-primary shadow-brand">
               <HeartHandshake className="size-6" />
             </div>
 
             <h2 className="text-base font-extrabold text-foreground">
-              {active} is coming to Yaarzo
+              {registeredUserId ? `Sign in to use ${active}` : `${active} is coming to Yaarzo`}
             </h2>
           </div>
         ) : !guestName ? (
@@ -1291,9 +1430,7 @@ function EmptyChat({
                       {entry.author}
                     </p>
 
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
-                      {entry.content}
-                    </p>
+                    <MessageMediaContent text={entry.content} media={media} />
                   </div>
                 </div>
               );
@@ -1315,78 +1452,32 @@ function EmptyChat({
         </p>
       ) : null}
 
-      <footer className="premium-panel shrink-0 border-t border-border bg-card/90 p-2.5">
-        <form
-          onSubmit={sendMessage}
-          className="mx-auto flex max-w-4xl items-end gap-1.5 rounded-lg border border-border bg-surface-raised p-1.5 shadow-brand focus-within:border-primary/60"
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled
-            aria-label="Attach a file"
-            className="shrink-0 text-muted-foreground"
-          >
-            <Paperclip />
-          </Button>
-
-          <textarea
-            disabled={!guestName || !isChat}
-            value={message}
-            onChange={(event) =>
-              setMessage(event.target.value)
-            }
-            onFocus={scrollChatToBottom}
-            onKeyDown={(event) => {
-              if (
-                event.key === "Enter" &&
-                !event.shiftKey
-              ) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
+      {isChat ? (
+        <footer className="premium-panel shrink-0 border-t border-border bg-card/90 p-2.5">
+          <ChatComposer
+            disabled={!guestName}
+            sending={sending}
+            media={{
+              youtube: { enabled: media.youtube.enabled },
+              giphy: { enabled: media.giphy.enabled },
             }}
-            aria-label="Message"
             placeholder={
-              guestName
-                ? "Write a message…"
-                : "Sign in or continue as guest to send"
+              guestName ? "Write a message…" : "Sign in or continue as guest to send"
             }
-            rows={1}
-            className="max-h-28 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
+            onSend={(content) => sendMessage(undefined, content)}
           />
-
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled
-            aria-label="Add media"
-            className="hidden shrink-0 text-muted-foreground sm:inline-flex"
-          >
-            <Image />
-          </Button>
-
-          <Button
-            size="icon"
-            type="submit"
-            disabled={
-              !guestName ||
-              !isChat ||
-              !message.trim() ||
-              sending
-            }
-            aria-label="Send message"
-            className="accent-button shrink-0"
-          >
-            <Send />
-          </Button>
-        </form>
-      </footer>
+        </footer>
+      ) : null}
     </div>
   );
 }
 export function YaarzoChat() {
   const { session, user, ready } = useAuth();
+  const registeredDm = useRegisteredDmContext();
+  const notifications = useNotifications();
+  const directory = useProfilesDirectory(!!user);
+  const [dmPeerId, setDmPeerId] = useState<string | null>(null);
+  const [guestDmTarget, setGuestDmTarget] = useState<GuestTarget | null>(null);
   const [active, setActive] = useState("Chatrooms");
   const [leftOpen, setLeftOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
@@ -1541,6 +1632,22 @@ export function YaarzoChat() {
     if (!isDesktop) setLeftOpen(false);
   };
 
+  const openRegisteredDm = (peerId: string) => {
+    setDmPeerId(peerId);
+    setGuestDmTarget(null);
+    setActive("Direct Messages");
+  };
+
+  const openGuestDm = (target: GuestTarget) => {
+    setGuestDmTarget(target);
+    setDmPeerId(null);
+    setActive("Direct Messages");
+  };
+
+  const navBadges: Partial<Record<string, number>> = {};
+  if (user && registeredDm.totalUnread > 0) navBadges["Direct Messages"] = registeredDm.totalUnread;
+  if (user && notifications.unread > 0) navBadges.Notifications = notifications.unread;
+
   const toggleNav = () => {
     if (isDesktop) return setNavDesktop((v) => !v);
     const next = !leftOpen;
@@ -1601,7 +1708,21 @@ export function YaarzoChat() {
     memberCount: members.length,
   };
 
-  const sidebarProps = { active, onSelect: selectNavigation, guestName, registered: !!user, registeredLabel: user?.email ?? "Yaarzo Member", onRegisteredAuth: () => setRegisteredDialogOpen(true), onGuestLogin: () => setGuestDialogOpen(true), onLogout: logout, theme, onThemeChange: changeTheme, appearance, onAppearanceChange: changeAppearance };
+  const sidebarProps = {
+    active,
+    onSelect: selectNavigation,
+    navBadges,
+    guestName,
+    registered: !!user,
+    registeredLabel: user?.email ?? "Yaarzo Member",
+    onRegisteredAuth: () => setRegisteredDialogOpen(true),
+    onGuestLogin: () => setGuestDialogOpen(true),
+    onLogout: logout,
+    theme,
+    onThemeChange: changeTheme,
+    appearance,
+    onAppearanceChange: changeAppearance,
+  };
 
   return (
     <div className={`${appearance} theme-${theme} h-dvh overflow-hidden bg-background text-foreground transition-colors duration-200`}>
@@ -1613,13 +1734,35 @@ export function YaarzoChat() {
             active={active}
             controls={controls}
             guestName={guestName}
+            registeredUserId={user?.id}
+            profiles={directory.profiles}
+            dmPeerId={dmPeerId}
+            guestDmTarget={guestDmTarget}
+            onClearDmTargets={() => {
+              setDmPeerId(null);
+              setGuestDmTarget(null);
+            }}
+            onOpenDmPeer={(peerId) => {
+              openRegisteredDm(peerId);
+            }}
             onGuestLogin={() => setGuestDialogOpen(true)}
             onMembersRefresh={() => void loadMembers()}
           />
         </section>
 
         {showMembersInline ? <MembersPanel members={members} loading={membersLoading} onClose={() => setMembersDesktop(false)} onSelectMember={(member) => openProfile({ kind: "member", member })} /> : null}
-        {showProfileInline && profile ? <ProfilePanel target={profile} guestName={guestName} onClose={() => setProfile(null)} onGuestLogin={() => setGuestDialogOpen(true)} /> : null}
+        {showProfileInline && profile ? (
+          <ProfilePanel
+            target={profile}
+            guestName={guestName}
+            registeredUserId={user?.id}
+            resolveProfileByUsername={directory.resolveByUsername}
+            onClose={() => setProfile(null)}
+            onGuestLogin={() => setGuestDialogOpen(true)}
+            onRegisteredMessage={openRegisteredDm}
+            onGuestPrivateMessage={openGuestDm}
+          />
+        ) : null}
       </div>
 
       {drawerOpen ? (
@@ -1631,7 +1774,16 @@ export function YaarzoChat() {
             ) : membersOpen ? (
               <MembersPanel members={members} loading={membersLoading} onClose={closeDrawers} onSelectMember={(member) => openProfile({ kind: "member", member })} />
             ) : profile ? (
-              <ProfilePanel target={profile} guestName={guestName} onClose={closeDrawers} onGuestLogin={() => setGuestDialogOpen(true)} />
+              <ProfilePanel
+                target={profile}
+                guestName={guestName}
+                registeredUserId={user?.id}
+                resolveProfileByUsername={directory.resolveByUsername}
+                onClose={closeDrawers}
+                onGuestLogin={() => setGuestDialogOpen(true)}
+                onRegisteredMessage={openRegisteredDm}
+                onGuestPrivateMessage={openGuestDm}
+              />
             ) : null}
           </div>
         </div>

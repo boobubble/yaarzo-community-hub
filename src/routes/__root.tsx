@@ -12,6 +12,9 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../contexts/auth-context";
+import { RegisteredDmProvider } from "../lib/dm/registered-dm-provider";
+import { NotificationsProvider } from "../lib/notifications/notifications-provider";
+import { SocialGraphProvider } from "../lib/social/social-graph-provider";
 
 function NotFoundComponent() {
   return (
@@ -122,8 +125,14 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <SocialGraphProvider>
+          <RegisteredDmProvider>
+            <NotificationsProvider>
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+            </NotificationsProvider>
+          </RegisteredDmProvider>
+        </SocialGraphProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
