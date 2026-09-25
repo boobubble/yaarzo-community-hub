@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+﻿import { createFileRoute } from "@tanstack/react-router";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
@@ -42,12 +42,12 @@ import type { CodyMember, CodyRoom } from "@/lib/codychat-adapter";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Yaarzo â€” Community Chat" },
+      { title: "Yaarzo Ã¢â‚¬â€ Community Chat" },
       {
         name: "description",
         content: "Yaarzo community chat, rooms, conversations and social spaces.",
       },
-      { property: "og:title", content: "Yaarzo â€” Community Chat" },
+      { property: "og:title", content: "Yaarzo Ã¢â‚¬â€ Community Chat" },
       {
         property: "og:description",
         content: "Join conversations and explore community spaces on Yaarzo.",
@@ -267,7 +267,7 @@ function MembersPanel({ members, loading, mobile, onClose }: { members: CodyMemb
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold text-foreground">{member.name}</p>
                 <p className="truncate text-[10px] text-muted-foreground">
-                  {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined].filter(Boolean).join(" Â· ") || "Online"}
+                  {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined].filter(Boolean).join(" Ã‚Â· ") || "Online"}
                 </p>
               </div>
             </div>
@@ -280,7 +280,7 @@ function MembersPanel({ members, loading, mobile, onClose }: { members: CodyMemb
           </div>
           <h3 className="text-sm font-bold text-foreground">{loading ? "Loading room members" : "Continue as Guest"}</h3>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            {loading ? "Checking CodyChatâ€™s live member list." : "Sign in to view CodyChatâ€™s real online users."}
+            {loading ? "Checking CodyChatÃ¢â‚¬â„¢s live member list." : "Sign in to view CodyChatÃ¢â‚¬â„¢s real online users."}
           </p>
         </div>
       )}
@@ -350,7 +350,7 @@ function GuestLoginDialog({ open, onOpenChange, onAuthenticated }: { open: boole
           </div>
           {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={submitting || !gender}>
-            {submitting ? "Connectingâ€¦" : "Continue as Guest"}
+            {submitting ? "ConnectingÃ¢â‚¬Â¦" : "Continue as Guest"}
           </Button>
         </form>
       </DialogContent>
@@ -383,19 +383,67 @@ function RegisteredAuthDialog({
 
     try {
       if (mode === "signin") {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+  const identifier = String(data.get("identifier") ?? "").trim();
 
-        if (signInError) {
-          setError(signInError.message);
-          return;
-        }
+  if (!identifier) {
+    setError("Email or username is required.");
+    return;
+  }
 
-        onOpenChange(false);
-        return;
-      }
+  if (identifier.includes("@")) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: identifier,
+      password,
+    });
+
+    if (signInError) {
+      setError("Invalid email/username or password.");
+      return;
+    }
+  } else {
+    const response = await fetch("/api/auth/username-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        username: identifier,
+        password,
+      }),
+    });
+
+    const result = (await response.json()) as {
+      error?: string;
+      session?: {
+        access_token: string;
+        refresh_token: string;
+      };
+    };
+
+    if (
+      !response.ok ||
+      !result.session?.access_token ||
+      !result.session?.refresh_token
+    ) {
+      setError(result.error ?? "Invalid email/username or password.");
+      return;
+    }
+
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: result.session.access_token,
+      refresh_token: result.session.refresh_token,
+    });
+
+    if (sessionError) {
+      setError("Unable to start your session. Please try again.");
+      return;
+    }
+  }
+
+  onOpenChange(false);
+  return;
+}
 
       const username = String(data.get("username") ?? "").trim();
 
@@ -508,27 +556,36 @@ function RegisteredAuthDialog({
           ) : null}
 
           <div className="space-y-1.5">
-            <Label htmlFor="registered-email">Email</Label>
-            <Input
-              id="registered-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="registered-password">Password</Label>
-            <Input
-              id="registered-password"
-              name="password"
-              type="password"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              minLength={6}
-              required
-            />
-          </div>
+  <Label
+    htmlFor={
+      mode === "signin" ? "registered-identifier" : "registered-email"
+    }
+  >
+    {mode === "signin" ? "Email or Username" : "Email"}
+  </Label>
+  <Input
+    id={
+      mode === "signin" ? "registered-identifier" : "registered-email"
+    }
+    name={mode === "signin" ? "identifier" : "email"}
+    type={mode === "signin" ? "text" : "email"}
+    autoComplete={mode === "signin" ? "username" : "email"}
+    maxLength={mode === "signin" ? 254 : undefined}
+    required
+  />
+</div>
+ 
+<div className="space-y-1.5">
+  <Label htmlFor="registered-password">Password</Label>
+  <Input
+    id="registered-password"
+    name="password"
+    type="password"
+    autoComplete={mode === "signin" ? "current-password" : "new-password"}
+    minLength={6}
+    required
+  />
+</div>
 
           {error ? (
             <p role="alert" className="text-xs text-destructive">
@@ -577,9 +634,9 @@ function ProfilePanel() {
         <Button disabled className="mt-5 w-full bg-primary">View profile</Button>
         <div className="mt-5 grid w-full grid-cols-3 border-y border-border py-3">
           {[
-            ["â€”", "Posts"],
-            ["â€”", "Friends"],
-            ["â€”", "Level"],
+            ["Ã¢â‚¬â€", "Posts"],
+            ["Ã¢â‚¬â€", "Friends"],
+            ["Ã¢â‚¬â€", "Level"],
           ].map(([value, label]) => (
             <div key={label} className="text-center">
               <p className="text-sm font-extrabold text-foreground">{value}</p>
@@ -590,7 +647,7 @@ function ProfilePanel() {
       </div>
       <div className="border-t border-border p-4">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase text-muted-foreground">Todayâ€™s highlights</p>
+          <p className="text-[10px] font-bold uppercase text-muted-foreground">TodayÃ¢â‚¬â„¢s highlights</p>
           <span className="text-[10px] font-semibold text-primary">Preview</span>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-1.5">
@@ -823,7 +880,7 @@ function LiveChat({
               onClick={() => void joinRoom(room)}
               className="h-7 shrink-0 rounded-full px-3 text-[10px]"
             >
-              {room.name} Â· {room.online}
+              {room.name} Ã‚Â· {room.online}
             </Button>
           ))}
         </div>
@@ -869,7 +926,7 @@ function LiveChat({
             })}
           </div>
         ) : (
-          <div className="m-auto text-center text-sm text-muted-foreground">Connected. Waiting for live messagesâ€¦</div>
+          <div className="m-auto text-center text-sm text-muted-foreground">Connected. Waiting for live messagesÃ¢â‚¬Â¦</div>
         )}
       </main>
 
@@ -889,7 +946,7 @@ function LiveChat({
               }
             }}
             aria-label="Message"
-            placeholder={guestName ? "Write a messageâ€¦" : "Continue as Guest to send a message"}
+            placeholder={guestName ? "Write a messageÃ¢â‚¬Â¦" : "Continue as Guest to send a message"}
             rows={1}
             className="max-h-28 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
           />
