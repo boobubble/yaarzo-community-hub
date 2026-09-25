@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { YaarzoChat } from "./index";
+import { YaarzoChat } from "@/components/chat/YaarzoChatApp";
 
 export const Route = createFileRoute("/chatroom")({
   head: () => ({
