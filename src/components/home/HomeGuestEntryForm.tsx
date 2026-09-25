@@ -118,7 +118,7 @@ export function HomeGuestEntryForm({
         {submitting ? "Joining…" : "Join Chatroom"}
         <ArrowRight className="size-4" />
       </Button>
-      <p className="text-[10px] leading-4 text-[var(--home-text-muted)]">
+      <p className="text-[10px] leading-4 opacity-50 text-[var(--home-text-muted)]">
         Guest access uses CodyChat&apos;s native session through Yaarzo — no
         Supabase account required.
       </p>

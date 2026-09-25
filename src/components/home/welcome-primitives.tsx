@@ -5,9 +5,11 @@ import { ChevronRight } from "lucide-react";
 export function WelcomeCard({
   className = "",
   children,
+  style,
 }: {
   className?: string;
   children: ReactNode;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
@@ -15,6 +17,7 @@ export function WelcomeCard({
       style={{
         background: "var(--home-card)",
         borderColor: "var(--home-border)",
+        ...style,
       }}
     >
       {children}

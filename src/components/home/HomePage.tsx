@@ -1,61 +1,31 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  Menu,
-  MessageCircle,
-  Moon,
-  Rocket,
-  Sun,
-  Users,
-  X,
-} from "lucide-react";
+import { Menu, Moon, Rocket, Sun, X } from "lucide-react";
 
 import { RegisteredAuthDialog } from "@/components/auth/registered-auth-dialog";
 import { HomeEntryCard } from "@/components/home/HomeEntryCard";
 import { HomeFooter } from "@/components/home/HomeFooter";
 import { HomeSeoCopy } from "@/components/home/HomeSeoCopy";
-import {
-  FeatureTile,
-  PillAvatar,
-  SectionTitle,
-  StatHighlight,
-  WelcomeCard,
-} from "@/components/home/welcome-primitives";
+import { HomeNavAnchor } from "@/components/home/home-shared";
+import { HomeBlog } from "@/components/home/sections/HomeBlog";
+import { HomeCommunities } from "@/components/home/sections/HomeCommunities";
+import { HomeCompetitions } from "@/components/home/sections/HomeCompetitions";
+import { HomeConfessions } from "@/components/home/sections/HomeConfessions";
+import { HomeDiscussions } from "@/components/home/sections/HomeDiscussions";
+import { HomeFeaturedMembers } from "@/components/home/sections/HomeFeaturedMembers";
+import { HomeFeatureGrid, HomeProductStats } from "@/components/home/sections/HomeFeatureGrid";
+import { HomeFinalCta } from "@/components/home/sections/HomeFinalCta";
+import { HomeLatestMembers } from "@/components/home/sections/HomeLatestMembers";
+import { HomeLiveCommunity } from "@/components/home/sections/HomeLiveCommunity";
+import { HomePoetrySeo, HomePoetryTrending } from "@/components/home/sections/HomePoetry";
+import { HomeRecentActivity } from "@/components/home/sections/HomeRecentActivity";
+import { HomeTrendingPosts } from "@/components/home/sections/HomeTrendingPosts";
+import { PillAvatar } from "@/components/home/welcome-primitives";
 import { WELCOME_THEME_CSS } from "@/components/home/welcome-theme-css";
 import { useAuth } from "@/contexts/auth-context";
+import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
+import { HOME_NAV_LINKS } from "@/lib/home/home-routes";
 import { HOME_SEO_H1 } from "@/lib/seo/home-page";
-
-const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Chatroom", href: "/chatroom" },
-] as const;
-
-const FEATURES = [
-  {
-    title: "Live Chatrooms",
-    description: "Public CodyChat rooms inside the premium Yaarzo UI.",
-    href: "/chatroom",
-    gradient: "linear-gradient(135deg,#8b5cf6,#6d28d9)",
-  },
-  {
-    title: "Guest Access",
-    description: "Nickname + gender — join in seconds, no account.",
-    href: "/chatroom",
-    gradient: "linear-gradient(135deg,#3b82f6,#1d4ed8)",
-  },
-  {
-    title: "Registered DMs",
-    description: "Member-to-member messages when you sign in.",
-    href: "/chatroom",
-    gradient: "linear-gradient(135deg,#10b981,#059669)",
-  },
-  {
-    title: "Replies & Media",
-    description: "Native quotes, GIFs, and YouTube in public chat.",
-    href: "/chatroom",
-    gradient: "linear-gradient(135deg,#f97316,#ea580c)",
-  },
-] as const;
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -65,6 +35,7 @@ export function HomePage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
   const [checkingSession, setCheckingSession] = useState(true);
+  const cfg = HOME_LANDING_CONFIG;
 
   const goChatroom = () => {
     void navigate({ to: "/chatroom" });
@@ -122,6 +93,11 @@ export function HomePage() {
     document.getElementById("home-entry")?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const openSignUp = () => {
+    setAuthMode("signup");
+    setAuthOpen(true);
+  };
+
   return (
     <div
       className={`welcome-root ${theme === "light" ? "welcome-light" : ""} relative min-h-screen overflow-x-hidden antialiased`}
@@ -144,6 +120,12 @@ export function HomePage() {
             background: "radial-gradient(closest-side,#3b82f6,transparent 70%)",
           }}
         />
+        <div
+          className="absolute bottom-[-10%] left-1/3 h-[500px] w-[500px] opacity-30"
+          style={{
+            background: "radial-gradient(closest-side,#ec4899,transparent 70%)",
+          }}
+        />
       </div>
 
       <header className="sticky top-0 z-40 border-b border-white/5">
@@ -161,14 +143,14 @@ export function HomePage() {
           </a>
 
           <nav aria-label="Homepage" className="ml-6 hidden items-center gap-1 lg:flex">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.href}
+            {HOME_NAV_LINKS.map((link) => (
+              <HomeNavAnchor
+                key={link.href + link.label}
                 href={link.href}
                 className="rounded-full px-3.5 py-2 text-sm font-medium opacity-70 transition-colors hover:bg-white/5 hover:opacity-100"
               >
                 {link.label}
-              </a>
+              </HomeNavAnchor>
             ))}
           </nav>
 
@@ -197,23 +179,6 @@ export function HomePage() {
             </button>
             <button
               type="button"
-              onClick={scrollToEntry}
-              className="hidden rounded-full border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold opacity-90 hover:bg-white/[0.08] sm:inline-flex"
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={scrollToEntry}
-              className="rounded-full px-4 py-2 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.03]"
-              style={{
-                background: "linear-gradient(135deg,#8b5cf6,#3b82f6)",
-              }}
-            >
-              Join Free
-            </button>
-            <button
-              type="button"
               onClick={() => setMenuOpen((value) => !value)}
               className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-white/5 lg:hidden"
               aria-label="Toggle menu"
@@ -231,14 +196,14 @@ export function HomePage() {
         {menuOpen ? (
           <div className="welcome-mobile-nav border-t border-white/10 px-4 pb-4 pt-2 lg:hidden">
             <nav aria-label="Mobile" className="grid gap-1">
-              {NAV_LINKS.map((link) => (
-                <a
-                  key={link.href}
+              {HOME_NAV_LINKS.map((link) => (
+                <HomeNavAnchor
+                  key={link.href + link.label}
                   href={link.href}
                   className="rounded-xl px-3 py-2.5 text-sm font-medium opacity-80 hover:bg-white/5"
                 >
                   {link.label}
-                </a>
+                </HomeNavAnchor>
               ))}
             </nav>
           </div>
@@ -247,10 +212,10 @@ export function HomePage() {
 
       <main>
         <section className="relative">
-          <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-8 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:gap-12 lg:px-8 lg:pt-14">
-            <div>
+          <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 pb-12 pt-6 sm:px-6 sm:pt-8 lg:grid lg:grid-cols-[1.1fr_1fr] lg:gap-12 lg:px-8 lg:pt-14">
+            <div className="order-2 lg:order-1">
               <p className="text-sm font-semibold tracking-wide text-purple-300">
-                Yaarzo Community
+                {cfg.heroEyebrow}
               </p>
               <h1 className="mt-2 text-[32px] font-black leading-[1.08] tracking-tight sm:text-5xl lg:text-[52px]">
                 {HOME_SEO_H1.replace("Join Communities", "").trim()}{" "}
@@ -265,15 +230,12 @@ export function HomePage() {
                 </span>
               </h1>
               <p className="mt-4 text-base font-semibold opacity-80 sm:text-lg">
-                Premium live chat — guests welcome, members stay connected.
+                Premium live chat — plus the full Yaarzo social platform, rolling out module by module.
               </p>
-              <p className="mt-3 max-w-xl text-sm opacity-65 sm:text-base">
-                Start as a guest in seconds or sign in with your Yaarzo account.
-                Everything runs inside our chatroom — never the raw CodyChat page.
-              </p>
+              <p className="mt-3 max-w-xl text-sm opacity-65 sm:text-base">{cfg.heroSubtitle}</p>
 
               <div className="mt-6 flex flex-wrap gap-2">
-                {["Free to join", "Live rooms", "Guest & member chat"].map((badge) => (
+                {cfg.heroBadges.map((badge) => (
                   <span
                     key={badge}
                     className="rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-xs font-semibold opacity-80"
@@ -308,47 +270,39 @@ export function HomePage() {
                     <PillAvatar key={name} name={name} size={32} />
                   ))}
                 </div>
-                <span className="text-xs opacity-65 sm:text-sm">
-                  Real-time public chat for guests and registered members.
-                </span>
+                <span className="text-xs opacity-65 sm:text-sm">{cfg.heroSocialProof}</span>
               </div>
             </div>
 
-            <div id="home-entry" className="scroll-mt-24">
+            <div id="home-entry" className="order-1 scroll-mt-24 lg:order-2">
               <HomeEntryCard
                 onChatroomReady={goChatroom}
-                onOpenSignUp={() => {
-                  setAuthMode("signup");
+                onOpenSignIn={() => {
+                  setAuthMode("signin");
                   setAuthOpen(true);
                 }}
+                onOpenSignUp={openSignUp}
               />
             </div>
           </div>
         </section>
 
-        <section
-          className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8"
-          aria-label="Highlights"
-        >
-          <div className="grid gap-3 sm:grid-cols-3">
-            <StatHighlight icon={MessageCircle} label="Product" value="Live" />
-            <StatHighlight icon={Users} label="Access" value="Guest +" />
-            <StatHighlight icon={Rocket} label="Entry" value="Instant" />
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8" aria-label="Features">
-          <WelcomeCard className="p-5 sm:p-6">
-            <SectionTitle icon="✨" title="What you can do on Yaarzo" />
-            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {FEATURES.map((feature) => (
-                <FeatureTile key={feature.title} {...feature} />
-              ))}
-            </div>
-          </WelcomeCard>
-        </section>
-
+        <HomeProductStats />
+        <HomeFeatureGrid />
         <HomeSeoCopy />
+        <HomeLiveCommunity />
+        <HomeTrendingPosts />
+        <HomePoetryTrending />
+        <HomePoetrySeo />
+        <HomeDiscussions />
+        <HomeCommunities />
+        <HomeCompetitions />
+        <HomeFeaturedMembers />
+        <HomeLatestMembers />
+        <HomeConfessions />
+        <HomeRecentActivity />
+        <HomeBlog />
+        <HomeFinalCta onCreateAccount={openSignUp} />
       </main>
 
       <HomeFooter />
