@@ -122,6 +122,68 @@ export function FriendRequestsPanel({
   );
 }
 
+function FriendRequestsSections({
+  profiles,
+  meId,
+}: {
+  profiles: Record<string, DirectoryProfile>;
+  meId: string;
+}) {
+  const { friendships, acceptRequest, rejectRequest, cancelRequest } = useSocialGraph();
+  const incomingRows = friendships.filter((f) => f.status === "pending" && f.receiver_id === meId);
+  const outgoingRows = friendships.filter((f) => f.status === "pending" && f.sender_id === meId);
+
+  return (
+    <div className="mb-5 space-y-4 border-b border-border pb-5">
+      <section>
+        <p className="mb-2 text-[10px] font-bold uppercase text-muted-foreground">Incoming requests</p>
+        {incomingRows.length ? (
+          <ul className="space-y-2">
+            {incomingRows.map((f) => {
+              const sender = profiles[f.sender_id];
+              return (
+                <li key={f.id} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+                  <span className="text-[11px] font-semibold">{sender?.username ?? "Member"}</span>
+                  <div className="flex gap-1">
+                    <Button size="sm" className="h-7 text-[10px]" onClick={() => void acceptRequest(f.id)}>
+                      Accept
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => void rejectRequest(f.id)}>
+                      Decline
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-xs text-muted-foreground">No incoming requests.</p>
+        )}
+      </section>
+      <section>
+        <p className="mb-2 text-[10px] font-bold uppercase text-muted-foreground">Sent requests</p>
+        {outgoingRows.length ? (
+          <ul className="space-y-2">
+            {outgoingRows.map((f) => {
+              const receiver = profiles[f.receiver_id];
+              return (
+                <li key={f.id} className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2">
+                  <span className="text-[11px] font-semibold">{receiver?.username ?? "Member"}</span>
+                  <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => void cancelRequest(f.id)}>
+                    Cancel
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-xs text-muted-foreground">No pending outgoing requests.</p>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function FindFriendsPanel({
   profiles,
   meId,
@@ -148,6 +210,7 @@ export function FindFriendsPanel({
         <UserPlus className="size-5 text-violet" />
         <h2 className="text-base font-extrabold">Find Friends</h2>
       </div>
+      <FriendRequestsSections profiles={profiles} meId={meId} />
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by username…" className="mb-4" />
       <ul className="space-y-2 overflow-y-auto">
         {results.map((p) => {

@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -68,16 +69,21 @@ import {
   parseCodyQuoteFromLog,
   quoteExcerpt,
 } from "@/lib/chat/cody-public-quote";
+import { RecentDmStrip } from "@/components/chat/RecentDmStrip";
+import { FindFriendsPanel, NotificationsPanel } from "@/components/chat/social/SocialPanels";
+import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
+import type { CodyPrivateConversation } from "@/lib/codychat-private";
+import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import {
-  FindFriendsPanel,
-  FriendRequestsPanel,
-  NotificationsPanel,
-} from "@/components/chat/social/SocialPanels";
+  buildHybridOnlineMembers,
+  directoryProfileToCodyMember,
+  selectRecentOfflineRegisteredMembers,
+} from "@/lib/members/recent-offline-registered";
+import { timeAgo } from "@/lib/notifications/notifications-provider";
 import type { CodyMember } from "@/lib/codychat-adapter";
 import { mergeMediaConfig } from "@/lib/media/media-providers-config";
 import { useProfilesDirectory } from "@/lib/profiles/use-profiles-directory";
 import { useNotifications } from "@/lib/notifications/notifications-provider";
-import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
 import type { AppearancePreference } from "@/lib/chatroom-appearance";
@@ -128,12 +134,6 @@ const primaryNavigation: NavItem[] = [
   { label: "Confessions", icon: HeartHandshake, tone: "pink" },
   { label: "Live Arena", icon: Radio, tone: "pink" },
   { label: "Leaderboard", icon: Crown, tone: "amber" },
-];
-
-const personalNavigation: NavItem[] = [
-  { label: "Friend Requests", icon: Users, tone: "cyan" },
-  { label: "Notifications", icon: Bell, tone: "pink" },
-  { label: "Direct Messages", icon: Send, tone: "violet" },
 ];
 
 function Brand() {
@@ -189,8 +189,6 @@ function Navigation({
       <div className="space-y-0.5">{primaryNavigation.slice(0, 4).map(renderItem)}</div>
       <p className="mb-1 mt-2.5 px-2.5 text-[8px] font-extrabold uppercase text-muted-foreground">Community</p>
       <div className="space-y-0.5">{primaryNavigation.slice(4).map(renderItem)}</div>
-      <p className="mb-1 mt-2.5 px-2.5 text-[8px] font-extrabold uppercase text-muted-foreground">Social</p>
-      <div className="space-y-0.5">{personalNavigation.map(renderItem)}</div>
     </nav>
   );
 }
@@ -319,108 +317,146 @@ function LeftSidebar({
 function MembersPanel({
   members,
   loading,
+  profiles,
+  viewerSupabaseId,
   selfCodyUserId,
   onClose,
   onSelectMember,
+  onSelectRegisteredProfile,
   onMessageMember,
 }: {
   members: CodyMember[];
   loading: boolean;
+  profiles: Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>;
+  viewerSupabaseId?: string;
   selfCodyUserId?: string;
   onClose: () => void;
   onSelectMember: (member: CodyMember) => void;
+  onSelectRegisteredProfile: (profile: import("@/lib/profiles/use-profiles-directory").DirectoryProfile) => void;
   onMessageMember: (member: CodyMember) => void;
 }) {
+  const onlineRows = useMemo(
+    () => buildHybridOnlineMembers(members, profiles),
+    [members, profiles],
+  );
+
+  const recentOffline = useMemo(
+    () => selectRecentOfflineRegisteredMembers(profiles, members, viewerSupabaseId),
+    [profiles, members, viewerSupabaseId],
+  );
+
+  const renderOnlineRow = (row: ReturnType<typeof buildHybridOnlineMembers>[number]) => {
+    const { codyMember, displayName, subtitle, avatarUrl } = row;
+    const isSelf = selfCodyUserId && codyMember.id === selfCodyUserId;
+    return (
+      <div
+        key={row.key}
+        className="member-row group flex w-full items-center gap-1 rounded-md px-1 py-0.5 hover:bg-secondary"
+      >
+        <button
+          type="button"
+          onClick={() => onSelectMember(codyMember)}
+          aria-label={`Open ${displayName}'s profile`}
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <div className="relative size-8 shrink-0">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                className="size-8 rounded-full border border-border object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex size-8 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
+                <Users className="size-3.5" />
+              </div>
+            )}
+            <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-success shadow-brand" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[10px] font-bold text-foreground">{displayName}</p>
+            <p className="truncate text-[8px] text-muted-foreground">{subtitle}</p>
+          </div>
+        </button>
+        {!isSelf ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-muted-foreground opacity-100 sm:opacity-80 sm:group-hover:opacity-100"
+            aria-label={`Message ${displayName}`}
+            title="Message"
+            onClick={() => onMessageMember(codyMember)}
+          >
+            <Mail className="size-3.5" />
+          </Button>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <aside className="premium-panel flex h-full w-[202px] shrink-0 flex-col border-l border-border bg-card">
       <header className="flex h-[68px] items-center justify-between border-b border-border px-3.5">
         <div>
           <h2 className="text-[13px] font-extrabold text-foreground">Members</h2>
-          <p className="mt-0.5 text-[9px] text-muted-foreground">{members.length ? `${members.length} online` : "Room roster"}</p>
+          <p className="mt-0.5 text-[9px] text-muted-foreground">
+            {onlineRows.length ? `${onlineRows.length} online` : "Room roster"}
+          </p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close members" title="Close members" className="text-muted-foreground">
           <X />
         </Button>
       </header>
-      <div className="border-b border-border p-2.5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-          <Input disabled aria-label="Search room members" placeholder="Search membersâ€¦" className="h-8 bg-background/45 pl-7 text-[9px]" />
-        </div>
-      </div>
-      {members.length ? (
-        <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 scrollbar-none">
-          {members.map((member) => {
-            const isSelf = selfCodyUserId && member.id === selfCodyUserId;
-            return (
-              <div
-                key={member.id}
-                className="member-row group flex w-full items-center gap-1 rounded-md px-1 py-0.5 hover:bg-secondary"
-              >
+      <div className="min-h-0 flex-1 overflow-y-auto p-2 scrollbar-none">
+        <p className="mb-1 px-1 text-[9px] font-bold uppercase text-muted-foreground">Online</p>
+        {onlineRows.length ? (
+          <div className="mb-3 space-y-0.5">{onlineRows.map(renderOnlineRow)}</div>
+        ) : (
+          <div className="mb-3 rounded-md border border-dashed border-border px-3 py-4 text-center">
+            <p className="text-[10px] font-semibold text-foreground">{loading ? "Loading room members" : "No one online"}</p>
+            <p className="mt-1 text-[9px] leading-4 text-muted-foreground">
+              {loading ? "Checking CodyChat live presence." : "Sign in or join as guest to see live members."}
+            </p>
+          </div>
+        )}
+
+        {viewerSupabaseId && recentOffline.length ? (
+          <>
+            <p className="mb-1 mt-1 px-1 text-[9px] font-bold uppercase text-muted-foreground">Recent offline</p>
+            <div className="space-y-0.5">
+              {recentOffline.map((profile) => (
                 <button
+                  key={profile.id}
                   type="button"
-                  onClick={() => onSelectMember(member)}
-                  aria-label={`Open ${member.name}'s profile`}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => onSelectRegisteredProfile(profile)}
+                  className="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left hover:bg-secondary"
                 >
                   <div className="relative size-8 shrink-0">
-                    {member.avatar ? (
-                      <img
-                        src={member.avatar}
-                        alt=""
-                        className="size-8 rounded-full border border-border object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="size-8 rounded-full border border-border object-cover" />
                     ) : (
                       <div className="flex size-8 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
                         <Users className="size-3.5" />
                       </div>
                     )}
-                    <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-success shadow-brand" />
+                    <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-muted-foreground" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[10px] font-bold text-foreground">{member.name}</p>
+                    <p className="truncate text-[10px] font-bold text-foreground">
+                      {profile.display_name || profile.username}
+                    </p>
                     <p className="truncate text-[8px] text-muted-foreground">
-                      {[member.gender, member.level !== undefined ? `Level ${member.level}` : undefined]
-                        .filter(Boolean)
-                        .join(" · ") || "Online"}
-                      {member.yaarzoUserId ? " · Registered" : ""}
+                      @{profile.username}
+                      {profile.last_seen ? ` · Active ${timeAgo(profile.last_seen)} ago` : ""}
                     </p>
                   </div>
                 </button>
-                {!isSelf ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7 shrink-0 text-muted-foreground opacity-100 sm:opacity-80 sm:group-hover:opacity-100"
-                    aria-label={`Message ${member.name}`}
-                    title="Message"
-                    onClick={() => onMessageMember(member)}
-                  >
-                    <Mail className="size-3.5" />
-                  </Button>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center px-7 text-center">
-          <div className="mb-4 flex size-14 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
-            <Users className="size-6" />
-          </div>
-          <h3 className="text-sm font-bold text-foreground">{loading ? "Loading room members" : "Continue as Guest"}</h3>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            {loading ? "Checking CodyChatâ€™s live member list." : "Sign in to view CodyChatâ€™s real online users."}
-          </p>
-        </div>
-      )}
-      <div className="border-t border-border p-3">
-        <p className="text-[8px] font-bold uppercase text-muted-foreground">Profile preview</p>
-        <div className="mt-2 rounded-md border border-dashed border-border px-3 py-3 text-center text-[9px] leading-4 text-muted-foreground">
-          Tap a member to open their profile.
-        </div>
+              ))}
+            </div>
+          </>
+        ) : null}
       </div>
     </aside>
   );
@@ -847,10 +883,16 @@ type PanelControls = {
   onToggleNav: () => void;
   onToggleMembers: () => void;
   onOpenMyProfile: () => void;
+  onOpenNotifications: () => void;
+  onOpenDirectMessages: () => void;
   navOpen: boolean;
   membersOpen: boolean;
   profileOpen: boolean;
   memberCount: number;
+  notificationsUnread: number;
+  dmUnread: number;
+  showNotifications: boolean;
+  showDirectMessages: boolean;
 };
 
 function plainText(value: unknown) {
@@ -998,6 +1040,7 @@ function EmptyChat({
   onGuestLogin,
   onMembersRefresh,
   onOpenSupabaseDm,
+  onOpenConversation,
 }: {
   active: string;
   controls: PanelControls;
@@ -1011,12 +1054,15 @@ function EmptyChat({
   onGuestLogin: () => void;
   onMembersRefresh: () => void;
   onOpenSupabaseDm: (peerSupabaseId: string, peerLabel?: string) => void;
+  onOpenConversation: (conversation: DirectConversation) => void;
 }) {
+  const registeredDm = useRegisteredDmContext();
   const isChat = active === "Chatrooms" || active === "Home";
   const isDirectMessages = active === "Direct Messages";
   const isNotifications = active === "Notifications";
-  const isFriendRequests = active === "Friend Requests";
   const isFindFriends = active === "Find Friends";
+  const [codyDmConversations, setCodyDmConversations] = useState<CodyPrivateConversation[]>([]);
+  const [activeMessageActionsId, setActiveMessageActionsId] = useState<string | null>(null);
   const [mediaFlags, setMediaFlags] = useState(mergeMediaConfig(null));
   const media = mergeMediaConfig(mediaFlags);
 
@@ -1034,6 +1080,38 @@ function EmptyChat({
       .then((json: CodyChatCapabilities) => setCapabilities(json))
       .catch(() => setCapabilities(null));
   }, [guestName, isChat]);
+
+  const loadCodyDmInbox = useCallback(async () => {
+    if (!hasCodySession) return;
+    const res = await fetch("/api/chat/private/conversations", { cache: "no-store" });
+    if (!res.ok) return;
+    const json = (await res.json()) as { conversations?: CodyPrivateConversation[] };
+    setCodyDmConversations(json.conversations ?? []);
+  }, [hasCodySession]);
+
+  useEffect(() => {
+    void loadCodyDmInbox();
+    if (!hasCodySession) return;
+    const interval = window.setInterval(() => void loadCodyDmInbox(), 15000);
+    return () => window.clearInterval(interval);
+  }, [hasCodySession, loadCodyDmInbox]);
+
+  const recentDmStripItems = useMemo(
+    () => buildRecentDmStripItems(registeredDm.conversations, codyDmConversations, profiles),
+    [registeredDm.conversations, codyDmConversations, profiles],
+  );
+
+  useEffect(() => {
+    if (!activeMessageActionsId) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest(`[data-message-actions="${activeMessageActionsId}"]`)) return;
+      setActiveMessageActionsId(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [activeMessageActionsId]);
+
   const iconBtn =
     "size-8 text-muted-foreground data-[on=true]:bg-secondary data-[on=true]:text-primary";
 
@@ -1382,6 +1460,29 @@ function EmptyChat({
                 ? selectedRoom?.name ?? "Community Chat"
                 : active}
             </h1>
+            {isChat && guestName && rooms.length > 1 ? (
+              <Select
+                value={roomId != null ? String(roomId) : undefined}
+                onValueChange={(value) => {
+                  const room = rooms.find((entry) => String(entry.id) === value);
+                  if (room) void joinRoom(room);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Switch chat room"
+                  className="h-6 w-[min(9rem,28vw)] border-border bg-secondary/50 px-2 text-[9px]"
+                >
+                  <SelectValue placeholder="Room" />
+                </SelectTrigger>
+                <SelectContent>
+                  {rooms.map((room) => (
+                    <SelectItem key={room.id} value={String(room.id)} className="text-xs">
+                      {room.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
           </div>
 
           <p className="mt-1 truncate text-[11px] text-muted-foreground lg:text-xs">
@@ -1389,7 +1490,7 @@ function EmptyChat({
               ? "Yaarzo social space"
               : guestName
                 ? selectedRoom
-                  ? `${selectedRoom.online} online`
+                  ? `${selectedRoom.online} online in room`
                   : "Connected to CodyChat"
                 : "Sign in or continue as guest to join"}
           </p>
@@ -1401,10 +1502,46 @@ function EmptyChat({
             size="icon"
             aria-label="Search conversation"
             title="Search conversation"
-            className="hidden size-8 text-muted-foreground sm:inline-flex"
+            className="hidden size-8 text-muted-foreground md:inline-flex"
           >
             <Search />
           </Button>
+
+          {controls.showNotifications ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={controls.onOpenNotifications}
+              aria-label="Notifications"
+              title="Notifications"
+              className={`relative ${iconBtn}`}
+            >
+              <Bell />
+              {controls.notificationsUnread > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-alert px-1 text-[8px] font-bold leading-4 text-alert-foreground">
+                  {controls.notificationsUnread}
+                </span>
+              ) : null}
+            </Button>
+          ) : null}
+
+          {controls.showDirectMessages ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={controls.onOpenDirectMessages}
+              aria-label="Direct messages"
+              title="Direct messages"
+              className={`relative ${iconBtn}`}
+            >
+              <Send />
+              {controls.dmUnread > 0 ? (
+                <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-alert px-1 text-[8px] font-bold leading-4 text-alert-foreground">
+                  {controls.dmUnread}
+                </span>
+              ) : null}
+            </Button>
+          ) : null}
 
           <Button
             variant="ghost"
@@ -1413,15 +1550,9 @@ function EmptyChat({
             data-on={controls.membersOpen}
             aria-label="Members"
             title="Members"
-            className={`relative ${iconBtn}`}
+            className={iconBtn}
           >
             <Users />
-
-            {controls.memberCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-success px-1 text-[8px] font-bold leading-4 text-primary-foreground">
-                {controls.memberCount}
-              </span>
-            ) : null}
           </Button>
 
           <Button
@@ -1438,54 +1569,9 @@ function EmptyChat({
         </div>
       </header>
 
-      {isChat && guestName && rooms.length ? (
-        <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border bg-card/70 px-3 scrollbar-none">
-          <span className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-highlight">
-            <Flame className="size-3.5" />
-            Rooms
-          </span>
-
-          {rooms.map((room) => (
-            <Button
-              key={room.id}
-              variant={
-                room.id === roomId ? "default" : "outline"
-              }
-              size="sm"
-              onClick={() => void joinRoom(room)}
-              className="topic-chip h-6 shrink-0 rounded-full px-2.5 text-[9px]"
-            >
-              {room.name} · {room.online}
-            </Button>
-          ))}
-        </div>
-      ) : (
-        <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border bg-card/70 px-3 scrollbar-none">
-          <span className="flex shrink-0 items-center gap-1.5 text-xs font-bold text-highlight">
-            <Flame className="size-3.5" />
-            Trending
-          </span>
-
-          {[
-            "Delhi",
-            "Mumbai",
-            "Cricket",
-            "Bollywood",
-            "Travel",
-            "Food",
-            "Music",
-          ].map((topic) => (
-            <Button
-              key={topic}
-              variant="outline"
-              size="sm"
-              className="topic-chip h-6 shrink-0 rounded-full border-border bg-secondary/55 px-2.5 text-[9px] text-muted-foreground hover:text-foreground"
-            >
-              {topic}
-            </Button>
-          ))}
-        </div>
-      )}
+      {isChat && hasCodySession ? (
+        <RecentDmStrip items={recentDmStripItems} onOpenConversation={onOpenConversation} />
+      ) : null}
 
       <main
         ref={chatScrollRef}
@@ -1502,8 +1588,6 @@ function EmptyChat({
           />
         ) : isNotifications && registeredUserId ? (
           <NotificationsPanel profiles={profiles} />
-        ) : isFriendRequests && registeredUserId ? (
-          <FriendRequestsPanel profiles={profiles} meId={registeredUserId} />
         ) : isFindFriends && registeredUserId ? (
           <FindFriendsPanel
             profiles={profiles}
@@ -1557,6 +1641,8 @@ function EmptyChat({
                 isCodyLogId(entry.id) &&
                 (capabilities?.canReport ?? true);
 
+              const messageSelected = activeMessageActionsId === entry.id;
+
               return (
                 <div
                   key={entry.id}
@@ -1568,9 +1654,29 @@ function EmptyChat({
                   }`}
                 >
                   <div
-                    className={`group relative max-w-[84%] rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm sm:max-w-[70%] ${
-                      isOwnMessage ? "text-right" : "text-left"
-                    }`}
+                    data-message-actions={entry.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (target.closest("a")) return;
+                      setActiveMessageActionsId((current) =>
+                        current === entry.id ? null : entry.id,
+                      );
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setActiveMessageActionsId((current) =>
+                          current === entry.id ? null : entry.id,
+                        );
+                      }
+                    }}
+                    className={`group relative max-w-[84%] cursor-pointer rounded-xl border px-3 py-2.5 shadow-sm transition sm:max-w-[70%] ${
+                      messageSelected
+                        ? "border-primary/60 bg-card ring-2 ring-primary/35"
+                        : "border-border bg-card"
+                    } ${isOwnMessage ? "text-right" : "text-left"}`}
                   >
                     <div
                       className={`mb-1 flex items-center gap-2 ${
@@ -1580,32 +1686,49 @@ function EmptyChat({
                       <p className="text-[10px] font-extrabold text-primary">
                         {entry.author}
                       </p>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-muted-foreground opacity-70 transition hover:text-primary group-hover:opacity-100"
-                        aria-label={`Reply to ${entry.author}`}
-                        onClick={() => setReplyTo(entry)}
-                      >
-                        <CornerDownRight className="size-3" />
-                        Reply
-                      </button>
-                      {canReportMessage ? (
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-muted-foreground opacity-70 transition hover:text-destructive group-hover:opacity-100"
-                          aria-label={`Report ${entry.author}'s message`}
-                          onClick={() =>
-                            setReportTarget({
-                              postId: entry.id,
-                              author: entry.author,
-                            })
-                          }
-                        >
-                          <Flag className="size-3" />
-                          Report
-                        </button>
-                      ) : null}
                     </div>
+
+                    {messageSelected ? (
+                      <div
+                        className={`mb-2 flex flex-wrap gap-1 ${
+                          isOwnMessage ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 gap-1 text-[10px]"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setReplyTo(entry);
+                            setActiveMessageActionsId(null);
+                          }}
+                        >
+                          <CornerDownRight className="size-3" />
+                          Reply
+                        </Button>
+                        {canReportMessage ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[10px] text-destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setReportTarget({
+                                postId: entry.id,
+                                author: entry.author,
+                              });
+                              setActiveMessageActionsId(null);
+                            }}
+                          >
+                            <Flag className="size-3" />
+                            Report
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {entry.quote &&
                     (entry.quote.author || entry.quote.content) ? (
@@ -1721,6 +1844,7 @@ export function YaarzoChat() {
   const [registeredDialogOpen, setRegisteredDialogOpen] = useState(false);
   const [members, setMembers] = useState<CodyMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const [codyDmUnread, setCodyDmUnread] = useState(0);
   const [theme, setTheme] = useState<YaarzoTheme>("glass");
   const {
     appearancePreference,
@@ -1822,6 +1946,23 @@ export function YaarzoChat() {
     return () => window.clearInterval(interval);
   }, [guestName, loadMembers]);
 
+  useEffect(() => {
+    if (!guestName) {
+      setCodyDmUnread(0);
+      return;
+    }
+    const refreshCodyDmUnread = async () => {
+      const res = await fetch("/api/chat/private/conversations", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = (await res.json()) as { conversations?: CodyPrivateConversation[] };
+      const unread = (json.conversations ?? []).reduce((sum, row) => sum + row.unread, 0);
+      setCodyDmUnread(unread);
+    };
+    void refreshCodyDmUnread();
+    const interval = window.setInterval(() => void refreshCodyDmUnread(), 15000);
+    return () => window.clearInterval(interval);
+  }, [guestName]);
+
   const logout = async () => {
     await fetch("/api/chat/logout", { method: "POST" }).catch(() => undefined);
 
@@ -1870,10 +2011,7 @@ export function YaarzoChat() {
   };
 
   const hasCodySession = !!guestName;
-
-  const navBadges: Partial<Record<string, number>> = {};
-  if (user && registeredDm.totalUnread > 0) navBadges["Direct Messages"] = registeredDm.totalUnread;
-  if (user && notifications.unread > 0) navBadges.Notifications = notifications.unread;
+  const totalDmUnread = registeredDm.totalUnread + codyDmUnread;
 
   const toggleNav = () => {
     if (isDesktop) return setNavDesktop((v) => !v);
@@ -1936,16 +2074,21 @@ export function YaarzoChat() {
     onToggleNav: toggleNav,
     onToggleMembers: toggleMembers,
     onOpenMyProfile: toggleMyProfile,
+    onOpenNotifications: () => selectNavigation("Notifications"),
+    onOpenDirectMessages: () => selectNavigation("Direct Messages"),
     navOpen: isDesktop ? navDesktop : leftOpen,
     membersOpen: isDesktop ? showMembersInline : membersOpen,
     profileOpen: profile?.kind === "self",
     memberCount: members.length,
+    notificationsUnread: user ? notifications.unread : 0,
+    dmUnread: totalDmUnread,
+    showNotifications: !!user,
+    showDirectMessages: hasCodySession || !!user,
   };
 
   const sidebarProps = {
     active,
     onSelect: selectNavigation,
-    navBadges,
     guestName,
     registered: !!user,
     registeredLabel: user?.email ?? "Yaarzo Member",
@@ -2003,6 +2146,7 @@ export function YaarzoChat() {
             onGuestLogin={() => setGuestDialogOpen(true)}
             onMembersRefresh={() => void loadMembers()}
             onOpenSupabaseDm={openSupabaseDmFromFriend}
+            onOpenConversation={openConversation}
           />
         </section>
 
@@ -2012,9 +2156,14 @@ export function YaarzoChat() {
               <MembersPanel
                 members={members}
                 loading={membersLoading}
+                profiles={directory.profiles}
+                viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
                 onClose={() => setMembersDesktop(false)}
                 onSelectMember={(member) => openProfile({ kind: "member", member })}
+                onSelectRegisteredProfile={(profile) =>
+                  openProfile({ kind: "member", member: directoryProfileToCodyMember(profile) })
+                }
                 onMessageMember={openDmFromMember}
               />
             ) : showProfileInline && profile ? (
@@ -2043,9 +2192,14 @@ export function YaarzoChat() {
               <MembersPanel
                 members={members}
                 loading={membersLoading}
+                profiles={directory.profiles}
+                viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
                 onClose={closeDrawers}
                 onSelectMember={(member) => openProfile({ kind: "member", member })}
+                onSelectRegisteredProfile={(profile) =>
+                  openProfile({ kind: "member", member: directoryProfileToCodyMember(profile) })
+                }
                 onMessageMember={openDmFromMember}
               />
             ) : profile ? (

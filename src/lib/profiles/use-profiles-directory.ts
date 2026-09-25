@@ -15,6 +15,7 @@ export type DirectoryProfile = {
   status: string;
   gender: string | null;
   country_code: string | null;
+  last_seen: string | null;
 };
 
 export function useProfilesDirectory(enabled: boolean) {
@@ -32,7 +33,7 @@ export function useProfilesDirectory(enabled: boolean) {
     const { data, error } = await supabase
       .from("profiles_directory")
       .select(
-        "id, username, display_name, bio, about_me, avatar_url, avatar_color, xp, level, status, gender, country_code",
+        "id, username, display_name, bio, about_me, avatar_url, avatar_color, xp, level, status, gender, country_code, last_seen",
       )
       .order("username", { ascending: true });
     if (!error && data) {
