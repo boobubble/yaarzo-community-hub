@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { appearanceBootstrapScript } from "../lib/chatroom-appearance";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "../contexts/auth-context";
 import { RegisteredDmProvider } from "../lib/dm/registered-dm-provider";
@@ -110,6 +111,7 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: appearanceBootstrapScript() }} />
       </head>
       <body>
         {children}

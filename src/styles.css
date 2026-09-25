@@ -546,6 +546,8 @@
 .light.theme-black {
   --background: #ffffff;
   --card: #ffffff;
+  --secondary: #f8f9fc;
+  --muted: #f4f5f8;
   --sidebar: #fcfbff;
   --foreground: #0f172a;
   --card-foreground: #0f172a;
