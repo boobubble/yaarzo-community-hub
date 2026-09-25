@@ -1,5 +1,6 @@
 import { Circle } from "lucide-react";
 
+import { HomeChatroomCta } from "@/components/home/home-entry-context";
 import { SectionTitle, WelcomeCard } from "@/components/home/welcome-primitives";
 import { ComingSoonBadge, HomeModuleEmpty } from "@/components/home/home-shared";
 import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
@@ -19,13 +20,12 @@ export function HomeLiveCommunity() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4">
           <WelcomeCard className="p-5">
-            <SectionTitle icon="🔥" title="Trending Chatrooms" href="/chatroom" />
+            <SectionTitle icon="🔥" title="Trending Chatrooms" />
             <div className="mt-3 space-y-2.5">
               {chatroomTopics.map((r, i) => (
-                <a
+                <HomeChatroomCta
                   key={r.name}
-                  href="/chatroom"
-                  className="flex items-center gap-3 rounded-xl bg-white/[0.03] p-2.5 hover:bg-white/[0.06]"
+                  className="flex w-full items-center gap-3 rounded-xl bg-white/[0.03] p-2.5 text-left hover:bg-white/[0.06]"
                 >
                   <div
                     className="grid h-11 w-14 place-items-center rounded-lg text-xl ring-1 ring-white/10"
@@ -38,7 +38,7 @@ export function HomeLiveCommunity() {
                     <div className="text-[11px] opacity-50">{r.topic}</div>
                   </div>
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                </a>
+                </HomeChatroomCta>
               ))}
             </div>
           </WelcomeCard>
@@ -50,7 +50,7 @@ export function HomeLiveCommunity() {
             </div>
             <HomeModuleEmpty
               message="Weekly leaderboard rankings will appear here when the social layer is live."
-              liveCta={{ href: "/chatroom", label: "Join chat meanwhile" }}
+              liveCta={{ label: "Join chat meanwhile", join: true }}
             />
           </WelcomeCard>
         </div>

@@ -78,6 +78,7 @@ export function HomeGuestEntryForm({
         <Input
           id="home-guest-nickname"
           name="nickname"
+          placeholder="Enter your nickname"
           autoComplete="nickname"
           maxLength={64}
           required
@@ -119,8 +120,7 @@ export function HomeGuestEntryForm({
         <ArrowRight className="size-4" />
       </Button>
       <p className="text-[10px] leading-4 opacity-50 text-[var(--home-text-muted)]">
-        Guest access uses CodyChat&apos;s native session through Yaarzo — no
-        Supabase account required.
+        No account needed.
       </p>
     </form>
   );

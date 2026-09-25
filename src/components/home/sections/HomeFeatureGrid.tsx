@@ -1,3 +1,4 @@
+import { HomeChatroomCta } from "@/components/home/home-entry-context";
 import { WelcomeCard } from "@/components/home/welcome-primitives";
 import { ComingSoonBadge } from "@/components/home/home-shared";
 import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
@@ -42,7 +43,7 @@ export function HomeFeatureGrid() {
               className="overflow-hidden p-0 text-center transition-transform hover:-translate-y-0.5"
             >
               {live ? (
-                <a href={f.href} className="block p-5">{body}</a>
+                <HomeChatroomCta className="block w-full p-5 text-left">{body}</HomeChatroomCta>
               ) : (
                 <div className="p-5">{body}</div>
               )}

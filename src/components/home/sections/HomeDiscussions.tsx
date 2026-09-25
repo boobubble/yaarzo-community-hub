@@ -9,7 +9,7 @@ export function HomeDiscussions() {
     >
       <HomeModuleEmpty
         message="Room and feed discussions will list here."
-        liveCta={{ href: "/chatroom", label: "Chat in public rooms" }}
+        liveCta={{ label: "Chat in public rooms", join: true }}
       />
     </HomeSectionShell>
   );

@@ -1,13 +1,11 @@
 import { ArrowRight, Rocket } from "lucide-react";
 
+import { HomeChatroomCta, useHomeEntry } from "@/components/home/home-entry-context";
 import { WelcomeCard } from "@/components/home/welcome-primitives";
 import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
 
-export function HomeFinalCta({
-  onCreateAccount,
-}: {
-  onCreateAccount: () => void;
-}) {
+export function HomeFinalCta() {
+  const { tryEnterChatroom } = useHomeEntry();
   const cfg = HOME_LANDING_CONFIG;
   return (
     <>
@@ -16,18 +14,19 @@ export function HomeFinalCta({
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Start Exploring Yaarzo</h2>
           <p className="mt-3 text-sm leading-relaxed opacity-70 sm:text-base">
             Open the{" "}
-            <a href="/chatroom" className="font-semibold text-purple-300 underline-offset-4 hover:underline">
+            <HomeChatroomCta
+              className="font-semibold text-purple-300 underline-offset-4 hover:underline"
+            >
               live chatroom
-            </a>{" "}
+            </HomeChatroomCta>{" "}
             today. Feed, communities, competitions, poetry, and more are rolling out on this
             homepage as each module connects — without redesigning the page.
           </p>
-          <a
-            href="/chatroom"
+          <HomeChatroomCta
             className="mt-5 inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-bold hover:bg-white/[0.08]"
           >
             Browse chatrooms
-          </a>
+          </HomeChatroomCta>
         </WelcomeCard>
       </section>
 
@@ -44,7 +43,7 @@ export function HomeFinalCta({
             <p className="mt-2 text-sm opacity-80">{cfg.finalCtaSubtitle}</p>
             <button
               type="button"
-              onClick={onCreateAccount}
+              onClick={() => void tryEnterChatroom("signup")}
               className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold text-[#1a0b2e] shadow-lg transition-transform hover:scale-[1.03]"
             >
               Create Free Account <ArrowRight className="h-4 w-4" />

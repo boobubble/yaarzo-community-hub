@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 
+import {
+  HomeChatroomCta,
+  type HomeJoinView,
+} from "@/components/home/home-entry-context";
 import { SectionTitle, WelcomeCard } from "@/components/home/welcome-primitives";
 import { isHomeLivePath } from "@/lib/home/home-routes";
 
@@ -49,20 +53,26 @@ export function HomeModuleEmpty({
   comingSoonLabel = "Coming soon",
 }: {
   message: string;
-  liveCta?: { href: string; label: string };
+  liveCta?: { label: string; join?: boolean; href?: string; view?: HomeJoinView };
   comingSoonLabel?: string;
 }) {
+  const ctaClass =
+    "inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold text-purple-200 hover:bg-white/[0.08]";
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-6 text-center">
       <p className="text-sm opacity-65">{message}</p>
       <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
         {liveCta ? (
-          <a
-            href={liveCta.href}
-            className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold text-purple-200 hover:bg-white/[0.08]"
-          >
-            {liveCta.label}
-          </a>
+          liveCta.join ? (
+            <HomeChatroomCta className={ctaClass} view={liveCta.view ?? "guest"}>
+              {liveCta.label}
+            </HomeChatroomCta>
+          ) : (
+            <a href={liveCta.href ?? "/chatroom"} className={ctaClass}>
+              {liveCta.label}
+            </a>
+          )
         ) : (
           <span className="inline-flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold opacity-70">
             {comingSoonLabel}

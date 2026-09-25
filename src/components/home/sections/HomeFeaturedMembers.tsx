@@ -10,7 +10,7 @@ export function HomeFeaturedMembers() {
     >
       <HomeModuleEmpty
         message="Featured creators and top members will highlight here."
-        liveCta={{ href: "/chatroom", label: "Meet people in chat" }}
+        liveCta={{ label: "Meet people in chat", join: true }}
       />
     </HomeSectionShell>
   );
