@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Bell,
   Compass,
@@ -11,6 +18,7 @@ import {
   CircleUser,
   PanelLeft,
   MessageCircle,
+  CornerDownRight,
   Moon,
   MoreHorizontal,
   Palette,
@@ -882,11 +890,66 @@ type CodyRoom = {
   passwordRequired?: boolean;
 };
 
-type LiveMessage = {
+type LiveMessageQuote = {
   id: string;
   author: string;
   content: string;
 };
+
+type LiveMessage = {
+  id: string;
+  author: string;
+  content: string;
+  quote?: LiveMessageQuote;
+};
+
+const CHAT_NEAR_BOTTOM_PX = 140;
+
+function replyExcerpt(text: string, max = 100) {
+  const trimmed = plainText(text);
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max)}…`;
+}
+
+function parseCodyQuote(raw: unknown): LiveMessageQuote | undefined {
+  if (raw === null || raw === undefined) return undefined;
+  if (typeof raw !== "object") return undefined;
+
+  const quote = raw as Record<string, unknown>;
+  const author =
+    plainText(String(quote.qname ?? quote.quser ?? "")) || "User";
+  const content = plainText(String(quote.qcontent ?? ""));
+  const id = String(quote.qid ?? quote.qpost ?? "");
+
+  if (!content && !id) return undefined;
+
+  return { id, author, content };
+}
+
+function parseQuoteFromElement(element: HTMLElement): LiveMessageQuote | undefined {
+  const quoteRoot =
+    element.querySelector(".cquote, .cqbox") ?? undefined;
+  if (!quoteRoot) return undefined;
+
+  const author = plainText(
+    quoteRoot.querySelector(".cqname")?.textContent ?? "",
+  );
+  const content = plainText(
+    quoteRoot.querySelector(".cqmess")?.textContent ?? "",
+  );
+  const id =
+    quoteRoot.className.match(/quote(\d+)/)?.[1] ??
+    element.getAttribute("data") ??
+    "";
+
+  if (!author && !content) return undefined;
+
+  return {
+    id: String(id),
+    author: author || "User",
+    content,
+  };
+}
 
 function normalizeMessages(value: unknown): LiveMessage[] {
   if (typeof value === "string") {
@@ -904,15 +967,22 @@ function normalizeMessages(value: unknown): LiveMessage[] {
 
     return nodes.flatMap((node, index) => {
       const element = node as HTMLElement;
+      const quote = parseQuoteFromElement(element);
+      const bubbleNode = element.querySelector(
+        ".mbubble, .bubble, .chat_message .chat_message",
+      );
       const contentNode = element.querySelector(
         ".chat_message, .chat_content, .message, .content, .chat_text, .log_content",
       );
       const authorNode = element.querySelector(
-        ".user_name, .username, .chat_name, .name",
+        ".user_name, .username, .cname .username, .chat_name, .name",
       );
 
       const content = plainText(
-        contentNode?.innerHTML ?? element.innerHTML,
+        bubbleNode?.innerHTML ??
+          contentNode?.querySelector(".mbubble, .bubble")?.innerHTML ??
+          contentNode?.innerHTML ??
+          element.innerHTML,
       );
 
       if (!content) return [];
@@ -922,11 +992,12 @@ function normalizeMessages(value: unknown): LiveMessage[] {
 
       const id =
         element.dataset.log ??
+        element.getAttribute("data") ??
         element.dataset.id ??
-        (element.id ||
+        (element.id?.replace(/^log/u, "") ||
           `${author}-${index}-${content.slice(0, 24)}`);
 
-      return [{ id, author, content }];
+      return [{ id, author, content, quote }];
     });
   }
 
@@ -957,7 +1028,9 @@ function normalizeMessages(value: unknown): LiveMessage[] {
         `${author}-${index}-${content.slice(0, 24)}`,
     );
 
-    return [{ id, author, content }];
+    const quote = parseCodyQuote(log.quote);
+
+    return [{ id, author, content, quote }];
   });
 }
 function EmptyChat({
@@ -1005,20 +1078,54 @@ function EmptyChat({
   const [rooms, setRooms] = useState<CodyRoom[]>([]);
   const [roomId, setRoomId] = useState<number>();
   const [messages, setMessages] = useState<LiveMessage[]>([]);
-  const [message, setMessage] = useState("");
+  const [replyTo, setReplyTo] = useState<LiveMessage | null>(null);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const chatScrollRef = useRef<HTMLElement>(null);
+  const stickToBottomRef = useRef(true);
+  const pendingScrollRef = useRef<ScrollBehavior | null>(null);
 
-  const scrollChatToBottom = () => {
-    const container = chatScrollRef.current;
-    if (!container) return;
-
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: "smooth",
-    });
+  const scheduleScrollToBottom = (behavior: ScrollBehavior = "auto") => {
+    stickToBottomRef.current = true;
+    pendingScrollRef.current = behavior;
   };
+
+  useEffect(() => {
+    stickToBottomRef.current = true;
+    pendingScrollRef.current = "auto";
+  }, [roomId]);
+
+  useEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container || !isChat) return;
+
+    const onScroll = () => {
+      const distance =
+        container.scrollHeight -
+        container.scrollTop -
+        container.clientHeight;
+      stickToBottomRef.current = distance <= CHAT_NEAR_BOTTOM_PX;
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [isChat, roomId]);
+
+  useLayoutEffect(() => {
+    const container = chatScrollRef.current;
+    if (!container || !isChat) return;
+
+    if (pendingScrollRef.current) {
+      const behavior = pendingScrollRef.current;
+      pendingScrollRef.current = null;
+      container.scrollTo({ top: container.scrollHeight, behavior });
+      return;
+    }
+
+    if (stickToBottomRef.current) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "auto" });
+    }
+  }, [messages, isChat, roomId]);
 
   const loadRooms = useCallback(async () => {
     if (!guestName || !isChat) return;
@@ -1077,12 +1184,10 @@ function EmptyChat({
       }
 
       setRoomId(room.id);
+      setReplyTo(null);
       setMessages(normalizeMessages(result.data?.room_logs));
       onMembersRefresh();
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(scrollChatToBottom);
-      });
+      scheduleScrollToBottom("auto");
     } catch {
       setError("CodyChat is unavailable. Please try again.");
     }
@@ -1174,9 +1279,11 @@ function EmptyChat({
   ) => {
     event?.preventDefault();
 
-    const content = (overrideContent ?? message).trim();
+    const content = (overrideContent ?? "").trim();
 
     if (!content || sending || !guestName || !isChat) return false;
+
+    const quoteId = replyTo?.id ? String(replyTo.id) : "0";
 
     setSending(true);
     setError("");
@@ -1189,7 +1296,7 @@ function EmptyChat({
         },
         body: JSON.stringify({
           content,
-          quote: 0,
+          quote: quoteId,
         }),
       });
 
@@ -1206,7 +1313,7 @@ function EmptyChat({
         return false;
       }
 
-      setMessage("");
+      setReplyTo(null);
 
       const sent = normalizeMessages(result.log);
 
@@ -1226,9 +1333,7 @@ function EmptyChat({
 
       await pollMessages();
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(scrollChatToBottom);
-      });
+      scheduleScrollToBottom("smooth");
       return true;
     } catch {
       setError("CodyChat is unavailable. Please try again.");
@@ -1448,16 +1553,44 @@ function EmptyChat({
                       : "justify-start"
                   }`}
                 >
-                  <div className="max-w-[84%] rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm sm:max-w-[70%]">
-                    <p
-                      className={`text-[10px] font-extrabold text-primary ${
-                        isOwnMessage
-                          ? "text-right"
-                          : "text-left"
+                  <div
+                    className={`group relative max-w-[84%] rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm sm:max-w-[70%] ${
+                      isOwnMessage ? "text-right" : "text-left"
+                    }`}
+                  >
+                    <div
+                      className={`mb-1 flex items-center gap-2 ${
+                        isOwnMessage ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {entry.author}
-                    </p>
+                      <p className="text-[10px] font-extrabold text-primary">
+                        {entry.author}
+                      </p>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-muted-foreground opacity-70 transition hover:text-primary group-hover:opacity-100"
+                        aria-label={`Reply to ${entry.author}`}
+                        onClick={() => setReplyTo(entry)}
+                      >
+                        <CornerDownRight className="size-3" />
+                        Reply
+                      </button>
+                    </div>
+
+                    {entry.quote ? (
+                      <div
+                        className={`mb-2 rounded-lg border-l-2 border-primary/60 bg-secondary/45 px-2 py-1.5 ${
+                          isOwnMessage ? "text-right" : "text-left"
+                        }`}
+                      >
+                        <p className="text-[9px] font-extrabold text-primary">
+                          {entry.quote.author}
+                        </p>
+                        <p className="text-[9px] leading-4 text-muted-foreground line-clamp-2">
+                          {entry.quote.content}
+                        </p>
+                      </div>
+                    ) : null}
 
                     <MessageMediaContent text={entry.content} media={media} />
                   </div>
@@ -1490,6 +1623,15 @@ function EmptyChat({
               youtube: { enabled: media.youtube.enabled },
               giphy: { enabled: media.giphy.enabled },
             }}
+            replyPreview={
+              replyTo
+                ? {
+                    author: replyTo.author,
+                    excerpt: replyExcerpt(replyTo.content),
+                    onClear: () => setReplyTo(null),
+                  }
+                : undefined
+            }
             placeholder={
               guestName ? "Write a message…" : "Sign in or continue as guest to send"
             }

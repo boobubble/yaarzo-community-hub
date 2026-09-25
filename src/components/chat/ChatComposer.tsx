@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Film, Image, Send } from "lucide-react";
+import { Film, Image, Send, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,17 +11,25 @@ type MediaFlags = {
   giphy: { enabled: boolean };
 };
 
+export type ChatComposerReplyPreview = {
+  author: string;
+  excerpt: string;
+  onClear: () => void;
+};
+
 export function ChatComposer({
   disabled,
   placeholder,
   sending,
   media,
+  replyPreview,
   onSend,
 }: {
   disabled?: boolean;
   placeholder: string;
   sending?: boolean;
   media: MediaFlags;
+  replyPreview?: ChatComposerReplyPreview;
   onSend: (text: string) => Promise<boolean> | boolean;
 }) {
   const [message, setMessage] = useState("");
@@ -50,10 +58,38 @@ export function ChatComposer({
   };
 
   return (
-    <form
-      onSubmit={submit}
-      className="mx-auto flex max-w-4xl items-end gap-1.5 rounded-lg border border-border bg-surface-raised p-1.5 shadow-brand focus-within:border-primary/60"
-    >
+    <div className="mx-auto w-full max-w-4xl">
+      {replyPreview ? (
+        <div
+          className="mb-2 flex items-start gap-2 rounded-lg border border-primary/35 bg-primary/5 px-2.5 py-2"
+          role="status"
+          aria-label="Replying to message"
+        >
+          <div className="min-w-0 flex-1 text-left">
+            <p className="text-[10px] font-extrabold text-primary">
+              Replying to {replyPreview.author}
+            </p>
+            <p className="truncate text-[10px] text-muted-foreground">
+              {replyPreview.excerpt}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0 text-muted-foreground"
+            aria-label="Cancel reply"
+            onClick={replyPreview.onClear}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+      ) : null}
+
+      <form
+        onSubmit={submit}
+        className="flex items-end gap-1.5 rounded-lg border border-border bg-surface-raised p-1.5 shadow-brand focus-within:border-primary/60"
+      >
       <Popover open={giphyOpen} onOpenChange={setGiphyOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -115,6 +151,7 @@ export function ChatComposer({
       >
         <Send />
       </Button>
-    </form>
+      </form>
+    </div>
   );
 }
