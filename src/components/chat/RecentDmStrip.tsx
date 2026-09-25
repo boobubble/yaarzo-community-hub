@@ -1,51 +1,79 @@
 import type { DirectConversation } from "@/lib/dm/direct-conversation";
 import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
 
-export function RecentDmStrip({
+function chipClass(active: boolean) {
+  return active
+    ? "border-primary/60 bg-primary/15 text-foreground"
+    : "border-border bg-secondary/55 text-foreground hover:bg-secondary";
+}
+
+export function ConversationNavStrip({
+  currentRoomName,
+  roomActive,
+  onSelectCurrentRoom,
   items,
-  selectedKey,
+  selectedDmKey,
   onOpenConversation,
 }: {
+  currentRoomName?: string;
+  roomActive: boolean;
+  onSelectCurrentRoom: () => void;
   items: RecentDmStripItem[];
-  selectedKey?: string;
+  selectedDmKey?: string;
   onOpenConversation: (conversation: DirectConversation) => void;
 }) {
-  if (!items.length) {
+  const showRoom = !!currentRoomName;
+
+  if (!showRoom && !items.length) {
     return (
       <div className="flex h-10 shrink-0 items-center border-b border-border bg-card/70 px-3">
-        <p className="text-[10px] text-muted-foreground">No recent direct messages</p>
+        <p className="text-[10px] text-muted-foreground">No recent conversations</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-border bg-card/70 px-3 scrollbar-none">
-      {items.map((item) => (
+    <div className="flex h-10 shrink-0 items-stretch border-b border-border bg-card/70">
+      {showRoom ? (
         <button
-          key={item.key}
           type="button"
-          onClick={() => onOpenConversation(item.conversation)}
-          className={`topic-chip inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-semibold transition ${
-            selectedKey === item.key
-              ? "border-primary/60 bg-primary/15 text-foreground"
-              : "border-border bg-secondary/55 text-foreground hover:bg-secondary"
-          }`}
+          onClick={onSelectCurrentRoom}
+          className={`topic-chip sticky left-0 z-10 my-auto ml-3 inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-semibold transition ${chipClass(roomActive)}`}
         >
-          {item.avatarUrl ? (
-            <img
-              src={item.avatarUrl}
-              alt=""
-              className="size-5 rounded-full border border-border object-cover"
-            />
-          ) : null}
-          <span className="max-w-[120px] truncate">{item.label}</span>
-          {item.unread > 0 ? (
-            <span className="rounded-full bg-alert px-1.5 text-[9px] font-bold leading-4 text-alert-foreground">
-              {item.unread}
-            </span>
-          ) : null}
+          <span className="max-w-[140px] truncate"># {currentRoomName}</span>
         </button>
-      ))}
+      ) : null}
+      <div
+        className={`flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1.5 scrollbar-none ${
+          showRoom ? "pl-1.5 pr-3" : "px-3"
+        }`}
+      >
+        {items.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onOpenConversation(item.conversation)}
+            className={`topic-chip inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-semibold transition ${chipClass(selectedDmKey === item.key)}`}
+          >
+            {item.avatarUrl ? (
+              <img
+                src={item.avatarUrl}
+                alt=""
+                className="size-5 rounded-full border border-border object-cover"
+              />
+            ) : null}
+            <span className="max-w-[120px] truncate">{item.label}</span>
+            {item.unread > 0 ? (
+              <span className="rounded-full bg-alert px-1.5 text-[9px] font-bold leading-4 text-alert-foreground">
+                {item.unread}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
+
+/** @deprecated Use ConversationNavStrip */
+export const RecentDmStrip = ConversationNavStrip;

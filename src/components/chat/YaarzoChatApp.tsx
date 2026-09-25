@@ -70,7 +70,7 @@ import {
   parseCodyQuoteFromLog,
   quoteExcerpt,
 } from "@/lib/chat/cody-public-quote";
-import { RecentDmStrip } from "@/components/chat/RecentDmStrip";
+import { ConversationNavStrip } from "@/components/chat/RecentDmStrip";
 import { FindFriendsPanel, NotificationsPanel } from "@/components/chat/social/SocialPanels";
 import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
 import type { CodyPrivateConversation } from "@/lib/codychat-private";
@@ -157,7 +157,7 @@ type ChatroomNavProps = {
   activeRoomId?: number;
   canLoad: boolean;
   onJoinRoom: (room: CodyRoom) => void;
-  onCloseDrawer?: () => void;
+  onCloseMobileDrawer?: () => void;
 };
 
 function Navigation({
@@ -172,11 +172,7 @@ function Navigation({
   chatrooms?: ChatroomNavProps;
 }) {
   const chatActive = active === "Chatrooms" || active === "Home";
-  const [chatroomsExpanded, setChatroomsExpanded] = useState(chatActive);
-
-  useEffect(() => {
-    if (chatActive) setChatroomsExpanded(true);
-  }, [chatActive]);
+  const [chatroomsExpanded, setChatroomsExpanded] = useState(false);
 
   const renderItem = ({ label, icon: Icon, badge, tone = "violet" }: NavItem) => {
     const selected = active === label || (label === "Chatrooms" && chatActive);
@@ -236,7 +232,8 @@ function Navigation({
                       onClick={() => {
                         chatrooms.onJoinRoom(room);
                         onSelect("Chatrooms");
-                        chatrooms.onCloseDrawer?.();
+                        setChatroomsExpanded(false);
+                        chatrooms.onCloseMobileDrawer?.();
                       }}
                       className={`h-7 w-full justify-start px-2 text-[10px] font-semibold ${
                         roomSelected
@@ -283,7 +280,7 @@ function LeftSidebar({
   onRegisteredAuth,
   onGuestLogin,
   onLogout,
-  mobile,
+  presentation = "inline",
   onClose,
   theme,
   onThemeChange,
@@ -302,7 +299,7 @@ function LeftSidebar({
   onRegisteredAuth: () => void;
   onGuestLogin: () => void;
   onLogout: () => void;
-  mobile?: boolean;
+  presentation?: "inline" | "drawer";
   onClose?: () => void;
   theme: YaarzoTheme;
   onThemeChange: (theme: YaarzoTheme) => void;
@@ -311,10 +308,14 @@ function LeftSidebar({
   onAppearancePreferenceChange: (preference: AppearancePreference) => void;
 }) {
   return (
-    <aside className={`${mobile ? "flex" : "hidden lg:flex"} premium-panel h-full w-[208px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar`}>
+    <aside
+      className={`${
+        presentation === "drawer" ? "flex" : "hidden lg:flex"
+      } premium-panel h-full w-[208px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar`}
+    >
       <div className="relative">
         <Brand />
-        {mobile ? (
+        {presentation === "drawer" ? (
           <Button variant="ghost" size="icon" onClick={onClose} className="absolute right-3 top-3 text-muted-foreground" aria-label="Close menu">
             <X />
           </Button>
@@ -334,7 +335,8 @@ function LeftSidebar({
           chatrooms
             ? {
                 ...chatrooms,
-                onCloseDrawer: mobile ? onClose : chatrooms.onCloseDrawer,
+                onCloseMobileDrawer:
+                  presentation === "drawer" ? onClose : chatrooms.onCloseMobileDrawer,
               }
             : undefined
         }
@@ -1674,25 +1676,13 @@ function EmptyChat({
         </div>
       </header>
 
-      {isDirectMessages ? (
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-card/80 px-3 py-2">
-          <p className="text-[12px] font-extrabold text-foreground">Direct Messages</p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-8 shrink-0 text-[10px] font-bold"
-            onClick={onReturnToLiveChatroom}
-          >
-            Live Chatroom
-          </Button>
-        </div>
-      ) : null}
-
       {(isChat || isDirectMessages) && hasCodySession ? (
-        <RecentDmStrip
+        <ConversationNavStrip
+          currentRoomName={selectedRoom?.name ?? (roomId != null ? "Community Chat" : undefined)}
+          roomActive={isChat}
+          onSelectCurrentRoom={onReturnToLiveChatroom}
           items={recentDmStripItems}
-          selectedKey={isDirectMessages ? selectedDmStripKey : undefined}
+          selectedDmKey={isDirectMessages ? selectedDmStripKey : undefined}
           onOpenConversation={handleStripConversation}
         />
       ) : null}
@@ -2259,11 +2249,7 @@ export function YaarzoChat() {
         {isDesktop ? (
           <div className="col-start-1 row-start-1 min-h-0 min-w-0 overflow-hidden">
             {showNavInline ? (
-              <LeftSidebar
-                {...sidebarProps}
-                mobile
-                onClose={() => setNavDesktop(false)}
-              />
+              <LeftSidebar {...sidebarProps} presentation="inline" />
             ) : null}
           </div>
         ) : null}
@@ -2329,7 +2315,7 @@ export function YaarzoChat() {
           <div className="drawer-backdrop absolute inset-0 bg-overlay" onClick={closeDrawers} aria-hidden="true" />
           <div className={`relative h-full max-w-[88vw] shadow-2xl ${leftOpen ? "drawer-left" : "drawer-right"}`} role="dialog" aria-modal="true">
             {leftOpen ? (
-              <LeftSidebar {...sidebarProps} mobile onClose={closeDrawers} />
+              <LeftSidebar {...sidebarProps} presentation="drawer" onClose={closeDrawers} />
             ) : membersOpen ? (
               <MembersPanel
                 members={members}
