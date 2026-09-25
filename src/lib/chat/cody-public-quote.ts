@@ -1,3 +1,6 @@
+import type { CodyMessagePart } from "@/lib/chat/cody-message-content";
+import { codyHtmlToPlainText, parseCodyMessageHtml } from "@/lib/chat/cody-message-content";
+
 export type CodyPublicQuote = {
   id: string;
   author: string;
@@ -8,7 +11,9 @@ export type CodyPublicQuote = {
 export type CodyPublicMessage = {
   id: string;
   author: string;
+  authorUserId?: string;
   content: string;
+  parts?: CodyMessagePart[];
   quote?: CodyPublicQuote;
 };
 
@@ -22,49 +27,10 @@ export function chatMessageDomId(logId: string) {
   return `chat-msg-${logId}`;
 }
 
-function decodeBasicEntities(value: string) {
-  return value
-    .replace(/&nbsp;/giu, " ")
-    .replace(/&amp;/giu, "&")
-    .replace(/&lt;/giu, "<")
-    .replace(/&gt;/giu, ">")
-    .replace(/&quot;/giu, '"')
-    .replace(/&#39;/giu, "'");
-}
+export { codyHtmlToPlainText } from "@/lib/chat/cody-message-content";
 
-export function codyHtmlToPlainText(html: unknown) {
-  const raw = typeof html === "string" ? html : html == null ? "" : String(html);
-  if (!raw.trim()) return "";
-
-  const withBreaks = raw.replace(/<br\s*\/?\s*>/giu, "\n");
-
-  if (typeof DOMParser === "undefined") {
-    return decodeBasicEntities(
-      withBreaks.replace(/<[^>]*>/gu, "").replace(/\s+/gu, " ").trim(),
-    );
-  }
-
-  const document = new DOMParser().parseFromString(withBreaks, "text/html");
-  document.body.querySelectorAll("img").forEach((img) => {
-    const replacement =
-      img.getAttribute("alt") ||
-      img.getAttribute("title") ||
-      img.getAttribute("data-emoji") ||
-      "";
-    if (replacement) {
-      img.replaceWith(document.createTextNode(replacement));
-    }
-  });
-
-  const text = decodeBasicEntities(
-    document.body.innerHTML.replace(/<[^>]*>/gu, ""),
-  );
-
-  return text
-    .replace(/\u00a0/gu, " ")
-    .replace(/[ \t]+\n/gu, "\n")
-    .replace(/\n{3,}/gu, "\n\n")
-    .trim();
+export function parseMessageBodyFromHtml(html: unknown) {
+  return parseCodyMessageHtml(html);
 }
 
 export function quoteExcerpt(text: string, max = QUOTE_EXCERPT_MAX) {
@@ -247,6 +213,8 @@ export function mergePublicMessages(
     ...incoming,
     ...(mergedQuote ? { quote: mergedQuote } : {}),
     content: incoming.content || previous?.content || "",
+    parts: incoming.parts?.length ? incoming.parts : previous?.parts,
+    authorUserId: incoming.authorUserId ?? previous?.authorUserId,
   };
 }
 

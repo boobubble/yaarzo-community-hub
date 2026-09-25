@@ -18,6 +18,7 @@ import {
   PanelLeft,
   MessageCircle,
   CornerDownRight,
+  Flag,
   MoreHorizontal,
   Palette,
   Paperclip,
@@ -53,11 +54,13 @@ import {
   type DirectConversation,
 } from "@/components/chat/dm/DirectMessagesWorkspace";
 import { resolveDmRoute } from "@/lib/dm/direct-conversation";
+import { ChatReportDialog } from "@/components/chat/ChatReportDialog";
 import { PublicChatQuotedReply } from "@/components/chat/PublicChatQuotedReply";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
+import type { CodyChatCapabilities } from "@/lib/chat/cody-chat-capabilities";
+import { parseCodyMessageHtml } from "@/lib/chat/cody-message-content";
 import {
   type CodyPublicMessage,
-  codyHtmlToPlainText,
   enrichPublicMessagesWithQuotes,
   isCodyLogId,
   mergePublicMessageLists,
@@ -901,14 +904,14 @@ function normalizeMessages(value: unknown): LiveMessage[] {
         ".user_name, .username, .cname .username, .chat_name, .name",
       );
 
-      const content = codyHtmlToPlainText(
+      const html =
         bubbleNode?.innerHTML ??
-          contentNode?.querySelector(".mbubble, .bubble")?.innerHTML ??
-          contentNode?.innerHTML ??
-          element.innerHTML,
-      );
+        contentNode?.querySelector(".mbubble, .bubble")?.innerHTML ??
+        contentNode?.innerHTML ??
+        element.innerHTML;
+      const body = parseCodyMessageHtml(html);
 
-      if (!content) return [];
+      if (!body.plainText && body.parts.length === 0) return [];
 
       const author =
         plainText(authorNode?.textContent) || "Yaarzo";
@@ -918,9 +921,20 @@ function normalizeMessages(value: unknown): LiveMessage[] {
         element.getAttribute("data") ??
         element.dataset.id ??
         (element.id?.replace(/^log/u, "") ||
-          `${author}-${index}-${content.slice(0, 24)}`);
+          `${author}-${index}-${body.plainText.slice(0, 24)}`);
 
-      return [{ id, author, content, quote }];
+      const authorUserId = element.getAttribute("data-user") ?? undefined;
+
+      return [
+        {
+          id,
+          author,
+          authorUserId,
+          content: body.plainText,
+          parts: body.parts.length ? body.parts : undefined,
+          quote,
+        },
+      ];
     });
 
     return enrichPublicMessagesWithQuotes(parsed);
@@ -937,11 +951,11 @@ function normalizeMessages(value: unknown): LiveMessage[] {
 
     const log = item as Record<string, unknown>;
 
-    const content = codyHtmlToPlainText(
+    const body = parseCodyMessageHtml(
       log.log_content ?? log.content ?? log.message,
     );
 
-    if (!content) return [];
+    if (!body.plainText && body.parts.length === 0) return [];
 
     const author =
       plainText(log.user_name ?? log.username ?? log.name) ||
@@ -950,12 +964,23 @@ function normalizeMessages(value: unknown): LiveMessage[] {
     const id = String(
       log.log_id ??
         log.id ??
-        `${author}-${index}-${content.slice(0, 24)}`,
+        `${author}-${index}-${body.plainText.slice(0, 24)}`,
     );
 
     const quote = parseCodyQuoteFromLog(log);
+    const authorUserId =
+      log.user_id != null ? String(log.user_id).slice(0, 64) : undefined;
 
-    return [{ id, author, content, quote }];
+    return [
+      {
+        id,
+        author,
+        authorUserId,
+        content: body.plainText,
+        parts: body.parts.length ? body.parts : undefined,
+        quote,
+      },
+    ];
   });
 
   return enrichPublicMessagesWithQuotes(parsed);
@@ -969,6 +994,7 @@ function EmptyChat({
   pendingConversation,
   onClearPendingConversation,
   hasCodySession,
+  selfCodyUserId,
   onGuestLogin,
   onMembersRefresh,
   onOpenSupabaseDm,
@@ -981,6 +1007,7 @@ function EmptyChat({
   pendingConversation?: DirectConversation | null;
   onClearPendingConversation?: () => void;
   hasCodySession: boolean;
+  selfCodyUserId?: string;
   onGuestLogin: () => void;
   onMembersRefresh: () => void;
   onOpenSupabaseDm: (peerSupabaseId: string, peerLabel?: string) => void;
@@ -999,6 +1026,14 @@ function EmptyChat({
       .then((json) => setMediaFlags({ youtube: json.youtube, giphy: json.giphy }))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!guestName || !isChat) return;
+    void fetch("/api/chat/capabilities", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json: CodyChatCapabilities) => setCapabilities(json))
+      .catch(() => setCapabilities(null));
+  }, [guestName, isChat]);
   const iconBtn =
     "size-8 text-muted-foreground data-[on=true]:bg-secondary data-[on=true]:text-primary";
 
@@ -1008,6 +1043,12 @@ function EmptyChat({
   const [replyTo, setReplyTo] = useState<LiveMessage | null>(null);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [capabilities, setCapabilities] = useState<CodyChatCapabilities | null>(null);
+  const [reportTarget, setReportTarget] = useState<{
+    postId: string;
+    author: string;
+  } | null>(null);
   const chatScrollRef = useRef<HTMLElement>(null);
   const stickToBottomRef = useRef(true);
   const pendingScrollRef = useRef<ScrollBehavior | null>(null);
@@ -1272,6 +1313,41 @@ function EmptyChat({
     }
   };
 
+  const uploadChatFile = async (file: File) => {
+    if (uploading || !guestName || !isChat) return false;
+    setUploading(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/chat/upload", {
+        method: "POST",
+        body: form,
+      });
+      const result = (await response.json()) as {
+        uploaded?: boolean;
+        log?: unknown;
+        error?: string;
+      };
+      if (!response.ok || !result.uploaded) {
+        setError(result.error ?? "Upload failed.");
+        return false;
+      }
+      const sent = normalizeMessages(result.log);
+      if (sent.length) {
+        setMessages((current) => mergePublicMessageLists(current, sent));
+      }
+      await pollMessages();
+      scheduleScrollToBottom("smooth");
+      return true;
+    } catch {
+      setError("CodyChat is unavailable. Please try again.");
+      return false;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const selectedRoom = rooms.find(
     (room) => room.id === roomId,
   );
@@ -1470,8 +1546,16 @@ function EmptyChat({
           <div className="yaarzo-chat-rail w-full space-y-3">
             {messages.map((entry) => {
               const isOwnMessage =
-                entry.author.trim().toLowerCase() ===
-                guestName.trim().toLowerCase();
+                (selfCodyUserId &&
+                  entry.authorUserId &&
+                  entry.authorUserId === selfCodyUserId) ||
+                (!!guestName &&
+                  entry.author.trim().toLowerCase() ===
+                    guestName.trim().toLowerCase());
+              const canReportMessage =
+                !isOwnMessage &&
+                isCodyLogId(entry.id) &&
+                (capabilities?.canReport ?? true);
 
               return (
                 <div
@@ -1505,6 +1589,22 @@ function EmptyChat({
                         <CornerDownRight className="size-3" />
                         Reply
                       </button>
+                      {canReportMessage ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-muted-foreground opacity-70 transition hover:text-destructive group-hover:opacity-100"
+                          aria-label={`Report ${entry.author}'s message`}
+                          onClick={() =>
+                            setReportTarget({
+                              postId: entry.id,
+                              author: entry.author,
+                            })
+                          }
+                        >
+                          <Flag className="size-3" />
+                          Report
+                        </button>
+                      ) : null}
                     </div>
 
                     {entry.quote &&
@@ -1515,7 +1615,11 @@ function EmptyChat({
                       />
                     ) : null}
 
-                    <MessageMediaContent text={entry.content} media={media} />
+                    <MessageMediaContent
+                      text={entry.content}
+                      parts={entry.parts}
+                      media={media}
+                    />
                   </div>
                 </div>
               );
@@ -1542,6 +1646,8 @@ function EmptyChat({
           <ChatComposer
             disabled={!guestName}
             sending={sending}
+            uploading={uploading}
+            canUpload={capabilities?.canUploadChat ?? false}
             media={{
               youtube: { enabled: media.youtube.enabled },
               giphy: { enabled: media.giphy.enabled },
@@ -1559,9 +1665,19 @@ function EmptyChat({
               guestName ? "Write a message…" : "Sign in or continue as guest to send"
             }
             onSend={(content) => sendMessage(undefined, content)}
+            onUploadFile={uploadChatFile}
           />
         </footer>
       ) : null}
+
+      <ChatReportDialog
+        open={!!reportTarget}
+        onOpenChange={(open) => {
+          if (!open) setReportTarget(null);
+        }}
+        postId={reportTarget?.postId ?? ""}
+        authorName={reportTarget?.author ?? ""}
+      />
     </div>
   );
 }
@@ -1883,6 +1999,7 @@ export function YaarzoChat() {
             pendingConversation={pendingConversation}
             onClearPendingConversation={() => setPendingConversation(null)}
             hasCodySession={hasCodySession}
+            selfCodyUserId={selfCodyUserId}
             onGuestLogin={() => setGuestDialogOpen(true)}
             onMembersRefresh={() => void loadMembers()}
             onOpenSupabaseDm={openSupabaseDmFromFriend}
