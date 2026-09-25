@@ -54,7 +54,18 @@ import {
   type DirectConversation,
 } from "@/components/chat/dm/DirectMessagesWorkspace";
 import { resolveDmRoute } from "@/lib/dm/direct-conversation";
+import { PublicChatQuotedReply } from "@/components/chat/PublicChatQuotedReply";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
+import {
+  type CodyPublicMessage,
+  codyHtmlToPlainText,
+  enrichPublicMessagesWithQuotes,
+  isCodyLogId,
+  mergePublicMessageLists,
+  parseCodyQuoteFromElement,
+  parseCodyQuoteFromLog,
+  quoteExcerpt,
+} from "@/lib/chat/cody-public-quote";
 import {
   FindFriendsPanel,
   FriendRequestsPanel,
@@ -890,66 +901,9 @@ type CodyRoom = {
   passwordRequired?: boolean;
 };
 
-type LiveMessageQuote = {
-  id: string;
-  author: string;
-  content: string;
-};
-
-type LiveMessage = {
-  id: string;
-  author: string;
-  content: string;
-  quote?: LiveMessageQuote;
-};
+type LiveMessage = CodyPublicMessage;
 
 const CHAT_NEAR_BOTTOM_PX = 140;
-
-function replyExcerpt(text: string, max = 100) {
-  const trimmed = plainText(text);
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max)}…`;
-}
-
-function parseCodyQuote(raw: unknown): LiveMessageQuote | undefined {
-  if (raw === null || raw === undefined) return undefined;
-  if (typeof raw !== "object") return undefined;
-
-  const quote = raw as Record<string, unknown>;
-  const author =
-    plainText(String(quote.qname ?? quote.quser ?? "")) || "User";
-  const content = plainText(String(quote.qcontent ?? ""));
-  const id = String(quote.qid ?? quote.qpost ?? "");
-
-  if (!content && !id) return undefined;
-
-  return { id, author, content };
-}
-
-function parseQuoteFromElement(element: HTMLElement): LiveMessageQuote | undefined {
-  const quoteRoot =
-    element.querySelector(".cquote, .cqbox") ?? undefined;
-  if (!quoteRoot) return undefined;
-
-  const author = plainText(
-    quoteRoot.querySelector(".cqname")?.textContent ?? "",
-  );
-  const content = plainText(
-    quoteRoot.querySelector(".cqmess")?.textContent ?? "",
-  );
-  const id =
-    quoteRoot.className.match(/quote(\d+)/)?.[1] ??
-    element.getAttribute("data") ??
-    "";
-
-  if (!author && !content) return undefined;
-
-  return {
-    id: String(id),
-    author: author || "User",
-    content,
-  };
-}
 
 function normalizeMessages(value: unknown): LiveMessage[] {
   if (typeof value === "string") {
@@ -965,9 +919,9 @@ function normalizeMessages(value: unknown): LiveMessage[] {
       ? candidates
       : Array.from(document.body.children);
 
-    return nodes.flatMap((node, index) => {
+    const parsed = nodes.flatMap((node, index) => {
       const element = node as HTMLElement;
-      const quote = parseQuoteFromElement(element);
+      const quote = parseCodyQuoteFromElement(element);
       const bubbleNode = element.querySelector(
         ".mbubble, .bubble, .chat_message .chat_message",
       );
@@ -978,7 +932,7 @@ function normalizeMessages(value: unknown): LiveMessage[] {
         ".user_name, .username, .cname .username, .chat_name, .name",
       );
 
-      const content = plainText(
+      const content = codyHtmlToPlainText(
         bubbleNode?.innerHTML ??
           contentNode?.querySelector(".mbubble, .bubble")?.innerHTML ??
           contentNode?.innerHTML ??
@@ -999,6 +953,8 @@ function normalizeMessages(value: unknown): LiveMessage[] {
 
       return [{ id, author, content, quote }];
     });
+
+    return enrichPublicMessagesWithQuotes(parsed);
   }
 
   const items = Array.isArray(value)
@@ -1007,12 +963,12 @@ function normalizeMessages(value: unknown): LiveMessage[] {
       ? [value]
       : [];
 
-  return items.flatMap((item, index) => {
+  const parsed = items.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
 
     const log = item as Record<string, unknown>;
 
-    const content = plainText(
+    const content = codyHtmlToPlainText(
       log.log_content ?? log.content ?? log.message,
     );
 
@@ -1028,10 +984,12 @@ function normalizeMessages(value: unknown): LiveMessage[] {
         `${author}-${index}-${content.slice(0, 24)}`,
     );
 
-    const quote = parseCodyQuote(log.quote);
+    const quote = parseCodyQuoteFromLog(log);
 
     return [{ id, author, content, quote }];
   });
+
+  return enrichPublicMessagesWithQuotes(parsed);
 }
 function EmptyChat({
   active,
@@ -1222,17 +1180,7 @@ function EmptyChat({
       );
 
       if (incoming.length) {
-        setMessages((current) => {
-          const map = new Map(
-            current.map((entry) => [entry.id, entry]),
-          );
-
-          for (const entry of incoming) {
-            map.set(entry.id, entry);
-          }
-
-          return [...map.values()].slice(-150);
-        });
+        setMessages((current) => mergePublicMessageLists(current, incoming));
       }
     } catch {
       // Keep existing messages visible during transient polling failures.
@@ -1283,7 +1231,11 @@ function EmptyChat({
 
     if (!content || sending || !guestName || !isChat) return false;
 
-    const quoteId = replyTo?.id ? String(replyTo.id) : "0";
+    const replySnapshot = replyTo;
+    const quoteId =
+      replySnapshot?.id && isCodyLogId(replySnapshot.id)
+        ? replySnapshot.id
+        : "0";
 
     setSending(true);
     setError("");
@@ -1315,20 +1267,28 @@ function EmptyChat({
 
       setReplyTo(null);
 
-      const sent = normalizeMessages(result.log);
+      let sent = normalizeMessages(result.log);
+
+      if (
+        sent[0] &&
+        replySnapshot &&
+        quoteId !== "0" &&
+        !sent[0].quote?.content
+      ) {
+        sent = [
+          {
+            ...sent[0],
+            quote: {
+              id: replySnapshot.id,
+              author: replySnapshot.author,
+              content: replySnapshot.content,
+            },
+          },
+        ];
+      }
 
       if (sent.length) {
-        setMessages((current) => {
-          const map = new Map(
-            current.map((entry) => [entry.id, entry]),
-          );
-
-          for (const entry of sent) {
-            map.set(entry.id, entry);
-          }
-
-          return [...map.values()].slice(-150);
-        });
+        setMessages((current) => mergePublicMessageLists(current, sent));
       }
 
       await pollMessages();
@@ -1547,7 +1507,8 @@ function EmptyChat({
               return (
                 <div
                   key={entry.id}
-                  className={`flex ${
+                  id={isCodyLogId(entry.id) ? `chat-msg-${entry.id}` : undefined}
+                  className={`flex scroll-mt-4 ${
                     isOwnMessage
                       ? "justify-end"
                       : "justify-start"
@@ -1577,19 +1538,12 @@ function EmptyChat({
                       </button>
                     </div>
 
-                    {entry.quote ? (
-                      <div
-                        className={`mb-2 rounded-lg border-l-2 border-primary/60 bg-secondary/45 px-2 py-1.5 ${
-                          isOwnMessage ? "text-right" : "text-left"
-                        }`}
-                      >
-                        <p className="text-[9px] font-extrabold text-primary">
-                          {entry.quote.author}
-                        </p>
-                        <p className="text-[9px] leading-4 text-muted-foreground line-clamp-2">
-                          {entry.quote.content}
-                        </p>
-                      </div>
+                    {entry.quote &&
+                    (entry.quote.author || entry.quote.content) ? (
+                      <PublicChatQuotedReply
+                        quote={entry.quote}
+                        alignEnd={isOwnMessage}
+                      />
                     ) : null}
 
                     <MessageMediaContent text={entry.content} media={media} />
@@ -1627,7 +1581,7 @@ function EmptyChat({
               replyTo
                 ? {
                     author: replyTo.author,
-                    excerpt: replyExcerpt(replyTo.content),
+                    excerpt: quoteExcerpt(replyTo.content, 160),
                     onClear: () => setReplyTo(null),
                   }
                 : undefined

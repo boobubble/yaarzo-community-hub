@@ -69,7 +69,7 @@ export function ChatComposer({
             <p className="text-[10px] font-extrabold text-primary">
               Replying to {replyPreview.author}
             </p>
-            <p className="truncate text-[10px] text-muted-foreground">
+            <p className="line-clamp-2 text-[10px] leading-4 text-muted-foreground whitespace-pre-wrap break-words">
               {replyPreview.excerpt}
             </p>
           </div>
