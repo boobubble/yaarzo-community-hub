@@ -1051,6 +1051,55 @@ function renderCodySystemLineContent(entry: CodyPublicMessage) {
   );
 }
 
+type ProfileUsernameLookup = ReturnType<
+  typeof useProfilesDirectory
+>["resolveByUsername"];
+
+function resolveSupabaseAvatarUrl(
+  resolveProfileByUsername: ProfileUsernameLookup,
+  username: string | undefined,
+): string | undefined {
+  if (!username?.trim()) return undefined;
+  const url = resolveProfileByUsername(username)?.avatar_url;
+  return url?.trim() ? url : undefined;
+}
+
+function resolveSystemChatAvatarUrl(
+  entry: CodyPublicMessage,
+  resolveProfileByUsername: ProfileUsernameLookup,
+): string {
+  const fromProfile = resolveSupabaseAvatarUrl(
+    resolveProfileByUsername,
+    entry.systemSubjectName,
+  );
+  if (fromProfile) return fromProfile;
+  if (entry.systemAvatarUrl) return entry.systemAvatarUrl;
+  return resolveCodyPublicUrl("default_system.png");
+}
+
+function ChatRowAvatar({ src, sizeClass = "size-5" }: { src?: string; sizeClass?: string }) {
+  const [broken, setBroken] = useState(false);
+  const showImage = Boolean(src) && !broken;
+  if (!showImage) {
+    return (
+      <div
+        className={`flex shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground ${sizeClass}`}
+      >
+        <Users className="size-3" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      referrerPolicy="no-referrer"
+      className={`shrink-0 rounded-full border border-border object-cover ${sizeClass}`}
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
 function EmptyChat({
   active,
   controls,
@@ -1067,6 +1116,7 @@ function EmptyChat({
   onOpenConversation,
   onRoomNavSync,
   onReturnToLiveChatroom,
+  resolveProfileByUsername,
 }: {
   active: string;
   controls: PanelControls;
@@ -1087,6 +1137,7 @@ function EmptyChat({
     joinRoom: (room: CodyRoom) => Promise<void>;
   }) => void;
   onReturnToLiveChatroom: () => void;
+  resolveProfileByUsername: ProfileUsernameLookup;
 }) {
   const registeredDm = useRegisteredDmContext();
   const isChat = active === "Chatrooms" || active === "Home";
@@ -1771,14 +1822,8 @@ function EmptyChat({
                     className="flex scroll-mt-4 justify-start px-1 py-0.5"
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      <img
-                        src={
-                          entry.systemAvatarUrl ??
-                          resolveCodyPublicUrl("default_system.png")
-                        }
-                        alt=""
-                        className="size-5 shrink-0 rounded-full border border-border object-cover"
-                        referrerPolicy="no-referrer"
+                      <ChatRowAvatar
+                        src={resolveSystemChatAvatarUrl(entry, resolveProfileByUsername)}
                       />
                       <p className="text-[11px] leading-snug text-muted-foreground">
                         {renderCodySystemLineContent(entry)}
@@ -1802,16 +1847,22 @@ function EmptyChat({
 
               const messageSelected = activeMessageActionsId === entry.id;
 
+              const messageAvatarUrl = resolveSupabaseAvatarUrl(
+                resolveProfileByUsername,
+                entry.author,
+              );
+
               return (
                 <div
                   key={entry.id}
                   id={isCodyLogId(entry.id) ? `chat-msg-${entry.id}` : undefined}
-                  className={`flex scroll-mt-4 ${
-                    isOwnMessage
-                      ? "justify-end"
-                      : "justify-start"
+                  className={`flex scroll-mt-4 gap-2 ${
+                    isOwnMessage ? "justify-end" : "justify-start"
                   }`}
                 >
+                  {!isOwnMessage ? (
+                    <ChatRowAvatar src={messageAvatarUrl} sizeClass="size-6" />
+                  ) : null}
                   <div
                     data-message-actions={entry.id}
                     role="button"
@@ -1903,6 +1954,9 @@ function EmptyChat({
                       media={media}
                     />
                   </div>
+                  {isOwnMessage ? (
+                    <ChatRowAvatar src={messageAvatarUrl} sizeClass="size-6" />
+                  ) : null}
                 </div>
               );
             })}
@@ -1970,7 +2024,7 @@ export function YaarzoChat() {
   const directory = useProfilesDirectory(true);
   const [serverProfiles, setServerProfiles] = useState<Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>>({});
   const registeredOnlineIds = useRegisteredPresence(user?.id);
-  const memberProfiles = Object.keys(serverProfiles).length ? serverProfiles : directory.profiles;
+  const memberProfiles = { ...directory.profiles, ...serverProfiles };
   const [pendingConversation, setPendingConversation] = useState<DirectConversation | null>(null);
   const [selfCodyUserId, setSelfCodyUserId] = useState<string>();
   const [active, setActive] = useState("Chatrooms");
@@ -2346,6 +2400,7 @@ export function YaarzoChat() {
             onOpenConversation={openConversation}
             onRoomNavSync={setChatRoomNav}
             onReturnToLiveChatroom={() => setActive("Chatrooms")}
+            resolveProfileByUsername={directory.resolveByUsername}
           />
         </section>
 
