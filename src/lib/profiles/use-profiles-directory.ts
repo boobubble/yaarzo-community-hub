@@ -26,19 +26,26 @@ export function useProfilesDirectory(enabled: boolean) {
   const [profiles, setProfiles] = useState<Record<string, DirectoryProfile>>({});
   const [byUsername, setByUsername] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!enabled) {
       setProfiles({});
       setByUsername({});
+      setError(null);
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase
+    setError(null);
+    const { data, error: queryError } = await supabase
       .from("profiles_directory")
       .select(PROFILES_DIRECTORY_SELECT)
       .order("username", { ascending: true });
-    if (!error && data) {
+    if (queryError) {
+      setProfiles({});
+      setByUsername({});
+      setError(queryError.message);
+    } else if (data) {
       const map: Record<string, DirectoryProfile> = {};
       const names: Record<string, string> = {};
       for (const row of data as ProfilesDirectoryRow[]) {
@@ -77,7 +84,14 @@ export function useProfilesDirectory(enabled: boolean) {
   );
 
   return useMemo(
-    () => ({ profiles, loading, refresh, resolveByUsername, getProfile: (id: string) => profiles[id] }),
-    [profiles, loading, refresh, resolveByUsername],
+    () => ({
+      profiles,
+      loading,
+      error,
+      refresh,
+      resolveByUsername,
+      getProfile: (id: string) => profiles[id],
+    }),
+    [profiles, loading, error, refresh, resolveByUsername],
   );
 }

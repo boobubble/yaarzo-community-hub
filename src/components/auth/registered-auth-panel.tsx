@@ -14,6 +14,10 @@ import {
 import { provisionRegisteredCodySession } from "@/lib/auth/enter-chatroom";
 import { supabase } from "@/lib/supabase";
 
+/** Light-surface fields: global foreground stays light for dark UI; force dark ink on white inputs. */
+const READABLE_LIGHT_INPUT =
+  "border-input bg-white text-slate-900 placeholder:text-slate-500 caret-slate-900 focus-visible:ring-ring";
+
 export function RegisteredAuthPanel({
   initialMode = "signin",
   onSuccess,
@@ -217,12 +221,13 @@ export function RegisteredAuthPanel({
                 autoComplete="username"
                 maxLength={64}
                 required
+                className={READABLE_LIGHT_INPUT}
               />
             </div>
             <div className="space-y-1.5">
               <Label>Gender</Label>
               <Select value={gender} onValueChange={setGender}>
-                <SelectTrigger>
+                <SelectTrigger className={READABLE_LIGHT_INPUT}>
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -246,6 +251,7 @@ export function RegisteredAuthPanel({
             autoComplete={mode === "signin" ? "username" : "email"}
             maxLength={mode === "signin" ? 254 : undefined}
             required
+            className={READABLE_LIGHT_INPUT}
           />
         </div>
 
@@ -258,6 +264,7 @@ export function RegisteredAuthPanel({
             autoComplete={mode === "signin" ? "current-password" : "new-password"}
             minLength={6}
             required
+            className={READABLE_LIGHT_INPUT}
           />
         </div>
 
