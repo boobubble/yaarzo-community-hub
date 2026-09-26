@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
 import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import type { CodyPrivateMessage } from "@/lib/codychat-private";
 import { isOwnPrivateMessage } from "@/lib/codychat-private";
-import { codychatTargetFromConversation, type DirectConversation } from "@/lib/dm/direct-conversation";
+import {
+  codychatTargetFromConversation,
+  conversationKey,
+  type DirectConversation,
+} from "@/lib/dm/direct-conversation";
 import type { DirectoryProfile } from "@/lib/profiles/use-profiles-directory";
 import { mergeMediaConfig } from "@/lib/media/media-providers-config";
+
+const DM_NEAR_BOTTOM_PX = 140;
 
 export function DirectMessagesWorkspace({
   registeredUserId,
@@ -23,6 +29,7 @@ export function DirectMessagesWorkspace({
   activeConversation: DirectConversation | null;
 }) {
   const registered = useRegisteredDmContext();
+  const { openConversation: openRegisteredConversation } = registered;
   const [codyMessages, setCodyMessages] = useState<CodyPrivateMessage[]>([]);
   const [codyLoading, setCodyLoading] = useState(false);
   const [codySending, setCodySending] = useState(false);
@@ -47,8 +54,8 @@ export function DirectMessagesWorkspace({
     activeConversation?.backend === "supabase" ? activeConversation.peerSupabaseId : null;
 
   useEffect(() => {
-    if (supabasePeerId) registered.openConversation(supabasePeerId);
-  }, [supabasePeerId, registered]);
+    if (supabasePeerId) openRegisteredConversation(supabasePeerId);
+  }, [supabasePeerId, openRegisteredConversation]);
 
   const loadCodyThread = useCallback(async (target: { userId: string }) => {
     setCodyLoading(true);
@@ -102,7 +109,63 @@ export function DirectMessagesWorkspace({
     return p?.display_name || p?.username || "Member";
   };
 
-  const sendSupabase = async (text: string) => registered.sendMessage(text);
+  const threadIsSupabase = activeConversation?.backend === "supabase";
+  const threadMessages = threadIsSupabase ? registered.messages : codyMessages;
+  const threadSending = threadIsSupabase ? registered.sending : codySending;
+
+  const dmScrollRef = useRef<HTMLElement>(null);
+  const stickToBottomRef = useRef(true);
+  const pendingScrollRef = useRef<ScrollBehavior | null>(null);
+
+  const activeConversationKey = activeConversation ? conversationKey(activeConversation) : null;
+
+  const scheduleScrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    stickToBottomRef.current = true;
+    pendingScrollRef.current = behavior;
+  }, []);
+
+  useEffect(() => {
+    if (!activeConversationKey) return;
+    stickToBottomRef.current = true;
+    pendingScrollRef.current = "auto";
+  }, [activeConversationKey]);
+
+  useEffect(() => {
+    const container = dmScrollRef.current;
+    if (!container || !activeConversationKey) return;
+
+    const onScroll = () => {
+      const distance =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      stickToBottomRef.current = distance <= DM_NEAR_BOTTOM_PX;
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [activeConversationKey]);
+
+  useLayoutEffect(() => {
+    const container = dmScrollRef.current;
+    if (!container || !activeConversationKey) return;
+    if (!threadIsSupabase && codyLoading) return;
+
+    if (pendingScrollRef.current) {
+      const behavior = pendingScrollRef.current;
+      pendingScrollRef.current = null;
+      container.scrollTo({ top: container.scrollHeight, behavior });
+      return;
+    }
+
+    if (stickToBottomRef.current) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "auto" });
+    }
+  }, [threadMessages, activeConversationKey, codyLoading, threadIsSupabase]);
+
+  const sendSupabase = async (text: string) => {
+    const ok = await registered.sendMessage(text);
+    if (ok) scheduleScrollToBottom("auto");
+    return ok;
+  };
 
   const sendCody = async (text: string) => {
     if (!codyTarget) return false;
@@ -122,12 +185,9 @@ export function DirectMessagesWorkspace({
         return [...map.values()];
       });
     }
+    scheduleScrollToBottom("auto");
     return true;
   };
-
-  const threadIsSupabase = activeConversation?.backend === "supabase";
-  const threadMessages = threadIsSupabase ? registered.messages : codyMessages;
-  const threadSending = threadIsSupabase ? registered.sending : codySending;
 
   if (!hasCodySession && !registeredUserId) {
     return (
@@ -161,7 +221,10 @@ export function DirectMessagesWorkspace({
           {activeConversation.backend === "supabase" ? "Registered Yaarzo DM" : "CodyChat private message"}
         </p>
       </header>
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4">
+      <main
+        ref={dmScrollRef}
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4"
+      >
         {codyLoading && activeConversation.backend === "codychat" ? (
           <p className="m-auto text-xs text-muted-foreground">Loading messages…</p>
         ) : (
