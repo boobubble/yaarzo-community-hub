@@ -15,6 +15,14 @@ export type CodyPublicMessage = {
   content: string;
   parts?: CodyMessagePart[];
   quote?: CodyPublicQuote;
+  /** CodyChat topic/system log (join, leave, etc.) */
+  system?: boolean;
+  /** Cody `log_type` e.g. system__join */
+  systemLogType?: string;
+  /** Subject username for system__join / system__leave (%user%) */
+  systemSubjectName?: string;
+  /** Cody `user_tumb` for system rows (e.g. default_system.png) */
+  systemAvatarUrl?: string;
 };
 
 const QUOTE_EXCERPT_MAX = 220;
@@ -215,6 +223,10 @@ export function mergePublicMessages(
     content: incoming.content || previous?.content || "",
     parts: incoming.parts?.length ? incoming.parts : previous?.parts,
     authorUserId: incoming.authorUserId ?? previous?.authorUserId,
+    system: incoming.system ?? previous?.system,
+    systemLogType: incoming.systemLogType ?? previous?.systemLogType,
+    systemSubjectName: incoming.systemSubjectName ?? previous?.systemSubjectName,
+    systemAvatarUrl: incoming.systemAvatarUrl ?? previous?.systemAvatarUrl,
   };
 }
 

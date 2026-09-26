@@ -60,16 +60,20 @@ import { ChatReportDialog } from "@/components/chat/ChatReportDialog";
 import { PublicChatQuotedReply } from "@/components/chat/PublicChatQuotedReply";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
 import type { CodyChatCapabilities } from "@/lib/chat/cody-chat-capabilities";
-import { parseCodyMessageHtml } from "@/lib/chat/cody-message-content";
 import {
   type CodyPublicMessage,
-  enrichPublicMessagesWithQuotes,
   isCodyLogId,
   mergePublicMessageLists,
-  parseCodyQuoteFromElement,
-  parseCodyQuoteFromLog,
   quoteExcerpt,
 } from "@/lib/chat/cody-public-quote";
+import {
+  maxNumericPublicLogId,
+  normalizePublicChatLogs,
+  extractChatPollLogs,
+  readChatPollLastLogId,
+  readChatPollRoomAction,
+} from "@/lib/chat/cody-public-log";
+import { resolveCodyPublicUrl } from "@/lib/chat/cody-chat-origin";
 import { ConversationNavStrip } from "@/components/chat/RecentDmStrip";
 import { FindFriendsPanel, NotificationsPanel } from "@/components/chat/social/SocialPanels";
 import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
@@ -1016,19 +1020,6 @@ type PanelControls = {
   showDirectMessages: boolean;
 };
 
-function plainText(value: unknown) {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/<br\s*\/?\s*>/giu, "\n")
-    .replace(/<[^>]*>/gu, "")
-    .replace(/&nbsp;/giu, " ")
-    .replace(/&amp;/giu, "&")
-    .replace(/&lt;/giu, "<")
-    .replace(/&gt;/giu, ">")
-    .replace(/&quot;/giu, '"')
-    .trim();
-}
-
 type CodyRoom = {
   id: number;
   name: string;
@@ -1040,114 +1031,26 @@ type LiveMessage = CodyPublicMessage;
 
 const CHAT_NEAR_BOTTOM_PX = 140;
 
-function normalizeMessages(value: unknown): LiveMessage[] {
-  if (typeof value === "string") {
-    if (!value.trim() || typeof DOMParser === "undefined") return [];
+const normalizeMessages = normalizePublicChatLogs;
 
-    const document = new DOMParser().parseFromString(value, "text/html");
-    const candidates = Array.from(
-      document.querySelectorAll(
-        "[data], .chat_message, .chat_log, .chat_line, .log, li",
-      ),
-    );
-    const nodes = candidates.length
-      ? candidates
-      : Array.from(document.body.children);
-
-    const parsed = nodes.flatMap((node, index) => {
-      const element = node as HTMLElement;
-      const quote = parseCodyQuoteFromElement(element);
-      const bubbleNode = element.querySelector(
-        ".mbubble, .bubble, .chat_message .chat_message",
-      );
-      const contentNode = element.querySelector(
-        ".chat_message, .chat_content, .message, .content, .chat_text, .log_content",
-      );
-      const authorNode = element.querySelector(
-        ".user_name, .username, .cname .username, .chat_name, .name",
-      );
-
-      const html =
-        bubbleNode?.innerHTML ??
-        contentNode?.querySelector(".mbubble, .bubble")?.innerHTML ??
-        contentNode?.innerHTML ??
-        element.innerHTML;
-      const body = parseCodyMessageHtml(html);
-
-      if (!body.plainText && body.parts.length === 0) return [];
-
-      const author =
-        plainText(authorNode?.textContent) || "Yaarzo";
-
-      const id =
-        element.dataset.log ??
-        element.getAttribute("data") ??
-        element.dataset.id ??
-        (element.id?.replace(/^log/u, "") ||
-          `${author}-${index}-${body.plainText.slice(0, 24)}`);
-
-      const authorUserId = element.getAttribute("data-user") ?? undefined;
-
-      return [
-        {
-          id,
-          author,
-          authorUserId,
-          content: body.plainText,
-          parts: body.parts.length ? body.parts : undefined,
-          quote,
-        },
-      ];
-    });
-
-    return enrichPublicMessagesWithQuotes(parsed);
-  }
-
-  const items = Array.isArray(value)
-    ? value
-    : value && typeof value === "object"
-      ? [value]
-      : [];
-
-  const parsed = items.flatMap((item, index) => {
-    if (!item || typeof item !== "object") return [];
-
-    const log = item as Record<string, unknown>;
-
-    const body = parseCodyMessageHtml(
-      log.log_content ?? log.content ?? log.message,
-    );
-
-    if (!body.plainText && body.parts.length === 0) return [];
-
-    const author =
-      plainText(log.user_name ?? log.username ?? log.name) ||
-      "Yaarzo";
-
-    const id = String(
-      log.log_id ??
-        log.id ??
-        `${author}-${index}-${body.plainText.slice(0, 24)}`,
-    );
-
-    const quote = parseCodyQuoteFromLog(log);
-    const authorUserId =
-      log.user_id != null ? String(log.user_id).slice(0, 64) : undefined;
-
-    return [
-      {
-        id,
-        author,
-        authorUserId,
-        content: body.plainText,
-        parts: body.parts.length ? body.parts : undefined,
-        quote,
-      },
-    ];
-  });
-
-  return enrichPublicMessagesWithQuotes(parsed);
+function renderCodySystemLineContent(entry: CodyPublicMessage) {
+  const name = entry.systemSubjectName?.trim();
+  if (!name) return entry.content;
+  const lower = entry.content.toLowerCase();
+  const nameLower = name.toLowerCase();
+  const index = lower.indexOf(nameLower);
+  if (index < 0) return entry.content;
+  return (
+    <>
+      {entry.content.slice(0, index)}
+      <span className="font-semibold text-foreground/90">
+        {entry.content.slice(index, index + name.length)}
+      </span>
+      {entry.content.slice(index + name.length)}
+    </>
+  );
 }
+
 function EmptyChat({
   active,
   controls,
@@ -1316,6 +1219,8 @@ function EmptyChat({
     author: string;
   } | null>(null);
   const chatScrollRef = useRef<HTMLElement>(null);
+  const lastPublicLogRef = useRef(0);
+  const cActionRef = useRef(0);
   const stickToBottomRef = useRef(true);
   const pendingScrollRef = useRef<ScrollBehavior | null>(null);
 
@@ -1420,7 +1325,36 @@ function EmptyChat({
 
         setRoomId(room.id);
         setReplyTo(null);
-        setMessages(normalizeMessages(result.data?.room_logs));
+        lastPublicLogRef.current = 0;
+        cActionRef.current = 0;
+
+        const roomData = result.data as
+          | {
+              room_logs?: unknown;
+              room_action?: number;
+            }
+          | undefined;
+
+        if (typeof roomData?.room_action === "number") {
+          cActionRef.current = roomData.room_action;
+        }
+
+        let initial = normalizeMessages(roomData?.room_logs);
+        if (!initial.length) {
+          const bootstrap = await fetch(
+            `/api/chat/messages?room=${room.id}&fload=1&last=0&caction=${cActionRef.current}`,
+            { cache: "no-store" },
+          );
+          if (bootstrap.ok) {
+            const bootJson = (await bootstrap.json()) as Record<string, unknown>;
+            const bootAction = readChatPollRoomAction(bootJson);
+            if (typeof bootAction === "number") cActionRef.current = bootAction;
+            initial = normalizeMessages(extractChatPollLogs(bootJson));
+          }
+        }
+
+        setMessages(initial);
+        lastPublicLogRef.current = maxNumericPublicLogId(initial);
         onMembersRefresh();
         scheduleScrollToBottom("auto");
       } catch {
@@ -1440,6 +1374,14 @@ function EmptyChat({
     try {
       const params = new URLSearchParams({
         room: String(roomId),
+        last: String(lastPublicLogRef.current),
+        fload: "0",
+        caction: String(cActionRef.current),
+        priv: "0",
+        lastp: "0",
+        pcount: "0",
+        notify: "0",
+        curset: "0",
       });
 
       const response = await fetch(
@@ -1451,19 +1393,30 @@ function EmptyChat({
 
       if (!response.ok) return;
 
-      const result = (await response.json()) as {
-        mlogs?: unknown;
-        rdata?: {
-          room_logs?: unknown;
-        };
-      };
+      const result = (await response.json()) as Record<string, unknown>;
 
-      const incoming = normalizeMessages(
-        result.rdata?.room_logs ?? result.mlogs,
-      );
+      const nextAction = readChatPollRoomAction(result);
+      if (nextAction !== undefined) {
+        cActionRef.current = nextAction;
+      }
+
+      const nextLast = readChatPollLastLogId(result);
+      if (nextLast !== undefined && nextLast > lastPublicLogRef.current) {
+        lastPublicLogRef.current = nextLast;
+      }
+
+      const incoming = normalizeMessages(extractChatPollLogs(result));
 
       if (incoming.length) {
-        setMessages((current) => mergePublicMessageLists(current, incoming));
+        setMessages((current) => {
+          const merged = mergePublicMessageLists(current, incoming);
+          lastPublicLogRef.current = Math.max(
+            lastPublicLogRef.current,
+            maxNumericPublicLogId(incoming),
+            maxNumericPublicLogId(merged),
+          );
+          return merged;
+        });
       }
     } catch {
       // Keep existing messages visible during transient polling failures.
@@ -1810,6 +1763,31 @@ function EmptyChat({
         ) : messages.length ? (
           <div className="yaarzo-chat-rail w-full space-y-3">
             {messages.map((entry) => {
+              if (entry.system) {
+                return (
+                  <div
+                    key={entry.id}
+                    id={isCodyLogId(entry.id) ? `chat-msg-${entry.id}` : undefined}
+                    className="flex scroll-mt-4 justify-start px-1 py-0.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <img
+                        src={
+                          entry.systemAvatarUrl ??
+                          resolveCodyPublicUrl("default_system.png")
+                        }
+                        alt=""
+                        className="size-5 shrink-0 rounded-full border border-border object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <p className="text-[11px] leading-snug text-muted-foreground">
+                        {renderCodySystemLineContent(entry)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+
               const isOwnMessage =
                 (selfCodyUserId &&
                   entry.authorUserId &&
