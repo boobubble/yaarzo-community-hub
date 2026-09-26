@@ -5,6 +5,40 @@ import type { CodyMember } from "@/lib/codychat-adapter";
 let usernameMapCache: { at: number; map: Map<string, string> } | null = null;
 const CACHE_MS = 45_000;
 
+export type RegisteredMemberProfile = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  about_me: string | null;
+  avatar_url: string | null;
+  avatar_color: string | null;
+  xp: number;
+  level: number;
+  status: string | null;
+  gender: string | null;
+  country_code: string | null;
+  last_seen: string | null;
+};
+
+export async function loadRegisteredMemberProfiles(): Promise<RegisteredMemberProfile[]> {
+  const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const url = process.env["VITE_SUPABASE_URL"];
+  if (!serviceKey || !url) return [];
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin
+    .from("profiles_directory")
+    .select("id, username, display_name, bio, about_me, avatar_url, avatar_color, xp, level, status, gender, country_code, last_seen")
+    .order("username", { ascending: true });
+
+  if (error || !data) return [];
+  return data as RegisteredMemberProfile[];
+}
+
 async function loadUsernameToIdMap(): Promise<Map<string, string>> {
   const now = Date.now();
   if (usernameMapCache && now - usernameMapCache.at < CACHE_MS) {

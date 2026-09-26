@@ -1927,7 +1927,9 @@ export function YaarzoChat() {
   const registeredDm = useRegisteredDmContext();
   const notifications = useNotifications();
   const directory = useProfilesDirectory(true);
+  const [serverProfiles, setServerProfiles] = useState<Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>>({});
   const registeredOnlineIds = useRegisteredPresence(user?.id);
+  const memberProfiles = Object.keys(serverProfiles).length ? serverProfiles : directory.profiles;
   const [pendingConversation, setPendingConversation] = useState<DirectConversation | null>(null);
   const [selfCodyUserId, setSelfCodyUserId] = useState<string>();
   const [active, setActive] = useState("Chatrooms");
@@ -1998,9 +2000,15 @@ export function YaarzoChat() {
       }
       const result = (await response.json()) as {
         members?: CodyMember[];
+        profiles?: import("@/lib/profiles/use-profiles-directory").DirectoryProfile[];
         self?: { codyUserId?: string };
       };
       if (response.ok && Array.isArray(result.members)) setMembers(result.members);
+      if (response.ok && Array.isArray(result.profiles)) {
+        setServerProfiles(
+          Object.fromEntries(result.profiles.map((profile) => [profile.id, profile])),
+        );
+      }
       if (response.ok && result.self?.codyUserId) setSelfCodyUserId(result.self.codyUserId);
     } finally {
       setMembersLoading(false);
@@ -2268,7 +2276,7 @@ export function YaarzoChat() {
             controls={controls}
             guestName={guestName}
             registeredUserId={user?.id}
-            profiles={directory.profiles}
+            profiles={memberProfiles}
                 registeredOnlineIds={registeredOnlineIds}
             pendingConversation={pendingConversation}
             onClearPendingConversation={() => setPendingConversation(null)}
@@ -2289,7 +2297,7 @@ export function YaarzoChat() {
               <MembersPanel
                 members={members}
                 loading={membersLoading}
-                profiles={directory.profiles}
+                profiles={memberProfiles}
                 registeredOnlineIds={registeredOnlineIds}
                 viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
@@ -2326,7 +2334,7 @@ export function YaarzoChat() {
               <MembersPanel
                 members={members}
                 loading={membersLoading}
-                profiles={directory.profiles}
+                profiles={memberProfiles}
                 registeredOnlineIds={registeredOnlineIds}
                 viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
