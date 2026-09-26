@@ -45,7 +45,13 @@ export function ChatComposer({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const busy = disabled || sending || uploading;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerDisabled = disabled || uploading;
+  const sendBlocked = composerDisabled || sending;
+
+  const focusComposer = () => {
+    textareaRef.current?.focus();
+  };
 
   const hasPlusActions =
     !!canUpload || media.giphy.enabled || media.youtube.enabled;
@@ -53,13 +59,19 @@ export function ChatComposer({
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = message.trim();
-    if (!content || busy) return;
-    const ok = await onSend(content);
-    if (ok) setMessage("");
+    if (!content || sendBlocked) return;
+    const contentToSend = content;
+    setMessage("");
+    focusComposer();
+    const ok = await onSend(contentToSend);
+    if (!ok) {
+      setMessage((prev) => (prev.trim() ? prev : contentToSend));
+    }
   };
 
   const sendMediaUrl = async (url: string) => {
-    if (busy) return;
+    if (sendBlocked) return;
+    focusComposer();
     const ok = await onSend(url);
     if (ok) {
       setGiphyOpen(false);
@@ -83,7 +95,7 @@ export function ChatComposer({
   const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || !onUploadFile || busy) return;
+    if (!file || !onUploadFile || composerDisabled) return;
     setPlusOpen(false);
     await onUploadFile(file);
   };
@@ -139,7 +151,7 @@ export function ChatComposer({
                 variant="ghost"
                 size="icon"
                 className={iconBtnClass}
-                disabled={busy}
+                disabled={composerDisabled}
                 aria-label="More actions"
                 aria-expanded={plusOpen}
               >
@@ -153,7 +165,7 @@ export function ChatComposer({
                     type="button"
                     variant="ghost"
                     className="h-9 justify-start gap-2 text-sm"
-                    disabled={busy}
+                    disabled={composerDisabled}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Paperclip className="size-4" /> Attach file
@@ -164,7 +176,7 @@ export function ChatComposer({
                     type="button"
                     variant="ghost"
                     className="h-9 justify-start gap-2 text-sm"
-                    disabled={busy}
+                    disabled={composerDisabled}
                     onClick={() => {
                       setPlusOpen(false);
                       setGiphyOpen(true);
@@ -178,7 +190,7 @@ export function ChatComposer({
                     type="button"
                     variant="ghost"
                     className="h-9 justify-start gap-2 text-sm"
-                    disabled={busy}
+                    disabled={composerDisabled}
                     onClick={() => {
                       setPlusOpen(false);
                       setYoutubeOpen(true);
@@ -198,7 +210,7 @@ export function ChatComposer({
               type="button"
               variant="ghost"
               size="icon"
-              disabled={busy}
+              disabled={composerDisabled}
               aria-label="Emoji"
               className={iconBtnClass}
             >
@@ -236,11 +248,13 @@ export function ChatComposer({
         ) : null}
 
         <textarea
-          disabled={busy}
+          ref={textareaRef}
+          disabled={composerDisabled}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
+              if (event.nativeEvent.isComposing) return;
               event.preventDefault();
               event.currentTarget.form?.requestSubmit();
             }
@@ -254,7 +268,7 @@ export function ChatComposer({
         <Button
           size="icon"
           type="submit"
-          disabled={busy || !message.trim()}
+          disabled={sendBlocked || !message.trim()}
           aria-label="Send message"
           className="accent-button shrink-0"
         >
