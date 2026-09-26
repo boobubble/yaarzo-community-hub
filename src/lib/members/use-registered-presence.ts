@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export function useRegisteredPresence(userId?: string) {
-  const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
+  const [onlineIds, setOnlineIds] = useState<Set<string>>(() => userId ? new Set([userId]) : new Set());
 
   useEffect(() => {
     if (!userId) {
@@ -16,7 +16,7 @@ export function useRegisteredPresence(userId?: string) {
 
     const sync = () => {
       const state = channel.presenceState();
-      setOnlineIds(new Set(Object.keys(state)));
+      setOnlineIds(new Set([userId, ...Object.keys(state)]));
     };
 
     channel
