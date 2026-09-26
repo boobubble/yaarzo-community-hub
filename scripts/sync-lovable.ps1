@@ -6,6 +6,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+$CurrentBranch = (git -C $RepoRoot branch --show-current).Trim()
+if ($CurrentBranch -ne "develop") {
+    throw "Lovable sync is allowed only on the develop branch. Current branch: $CurrentBranch"
+}
 $TempRoot = Join-Path $RepoRoot ".lovable-sync-temp"
 $ReviewRoot = Join-Path $RepoRoot ".lovable-review"
 
