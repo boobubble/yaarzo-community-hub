@@ -19,6 +19,7 @@ import { Route as ApiChatLogoutRouteImport } from './routes/api/chat/logout'
 import { Route as ApiChatMembersRouteImport } from './routes/api/chat/members'
 import { Route as ApiChatMessagesRouteImport } from './routes/api/chat/messages'
 import { Route as ApiChatRegisteredLoginRouteImport } from './routes/api/chat/registered-login'
+import { Route as ApiChatRegisteredMembersRouteImport } from './routes/api/chat/registered-members'
 import { Route as ApiChatReportRouteImport } from './routes/api/chat/report'
 import { Route as ApiChatRoomsRouteImport } from './routes/api/chat/rooms'
 import { Route as ApiChatSessionRouteImport } from './routes/api/chat/session'
@@ -79,6 +80,12 @@ const ApiChatRegisteredLoginRoute = ApiChatRegisteredLoginRouteImport.update({
   path: '/api/chat/registered-login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRegisteredMembersRoute =
+  ApiChatRegisteredMembersRouteImport.update({
+    id: '/api/chat/registered-members',
+    path: '/api/chat/registered-members',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiChatReportRoute = ApiChatReportRouteImport.update({
   id: '/api/chat/report',
   path: '/api/chat/report',
@@ -137,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/api/chat/members': typeof ApiChatMembersRoute
   '/api/chat/messages': typeof ApiChatMessagesRoute
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
+  '/api/chat/registered-members': typeof ApiChatRegisteredMembersRoute
   '/api/chat/report': typeof ApiChatReportRoute
   '/api/chat/rooms': typeof ApiChatRoomsRoute
   '/api/chat/session': typeof ApiChatSessionRoute
@@ -158,6 +166,7 @@ export interface FileRoutesByTo {
   '/api/chat/members': typeof ApiChatMembersRoute
   '/api/chat/messages': typeof ApiChatMessagesRoute
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
+  '/api/chat/registered-members': typeof ApiChatRegisteredMembersRoute
   '/api/chat/report': typeof ApiChatReportRoute
   '/api/chat/rooms': typeof ApiChatRoomsRoute
   '/api/chat/session': typeof ApiChatSessionRoute
@@ -180,6 +189,7 @@ export interface FileRoutesById {
   '/api/chat/members': typeof ApiChatMembersRoute
   '/api/chat/messages': typeof ApiChatMessagesRoute
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
+  '/api/chat/registered-members': typeof ApiChatRegisteredMembersRoute
   '/api/chat/report': typeof ApiChatReportRoute
   '/api/chat/rooms': typeof ApiChatRoomsRoute
   '/api/chat/session': typeof ApiChatSessionRoute
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/api/chat/members'
     | '/api/chat/messages'
     | '/api/chat/registered-login'
+    | '/api/chat/registered-members'
     | '/api/chat/report'
     | '/api/chat/rooms'
     | '/api/chat/session'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/api/chat/members'
     | '/api/chat/messages'
     | '/api/chat/registered-login'
+    | '/api/chat/registered-members'
     | '/api/chat/report'
     | '/api/chat/rooms'
     | '/api/chat/session'
@@ -245,6 +257,7 @@ export interface FileRouteTypes {
     | '/api/chat/members'
     | '/api/chat/messages'
     | '/api/chat/registered-login'
+    | '/api/chat/registered-members'
     | '/api/chat/report'
     | '/api/chat/rooms'
     | '/api/chat/session'
@@ -267,6 +280,7 @@ export interface RootRouteChildren {
   ApiChatMembersRoute: typeof ApiChatMembersRoute
   ApiChatMessagesRoute: typeof ApiChatMessagesRoute
   ApiChatRegisteredLoginRoute: typeof ApiChatRegisteredLoginRoute
+  ApiChatRegisteredMembersRoute: typeof ApiChatRegisteredMembersRoute
   ApiChatReportRoute: typeof ApiChatReportRoute
   ApiChatRoomsRoute: typeof ApiChatRoomsRoute
   ApiChatSessionRoute: typeof ApiChatSessionRoute
@@ -350,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRegisteredLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat/registered-members': {
+      id: '/api/chat/registered-members'
+      path: '/api/chat/registered-members'
+      fullPath: '/api/chat/registered-members'
+      preLoaderRoute: typeof ApiChatRegisteredMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat/report': {
       id: '/api/chat/report'
       path: '/api/chat/report'
@@ -427,6 +448,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatMembersRoute: ApiChatMembersRoute,
   ApiChatMessagesRoute: ApiChatMessagesRoute,
   ApiChatRegisteredLoginRoute: ApiChatRegisteredLoginRoute,
+  ApiChatRegisteredMembersRoute: ApiChatRegisteredMembersRoute,
   ApiChatReportRoute: ApiChatReportRoute,
   ApiChatRoomsRoute: ApiChatRoomsRoute,
   ApiChatSessionRoute: ApiChatSessionRoute,

@@ -8,7 +8,7 @@ import {
   parseMembers,
   parseRequestCookie,
 } from "@/lib/codychat-adapter";
-import { enrichMembersWithYaarzoIds, loadRegisteredMemberProfiles } from "@/lib/server/member-yaarzo-lookup";
+import { enrichMembersWithYaarzoIds } from "@/lib/server/member-yaarzo-lookup";
 
 export const Route = createFileRoute("/api/chat/members")({
   server: {
@@ -33,12 +33,10 @@ export const Route = createFileRoute("/api/chat/members")({
           if (!roster.ok) return Response.json({ error: "CodyChat member list is unavailable." }, { status: 502 });
           const parsed = parseMembers(await roster.text());
           const members = await enrichMembersWithYaarzoIds(parsed);
-          const profiles = await loadRegisteredMemberProfiles();
           const selfCodyUserId = codyUserIdFromCookies(session.cookies);
           return Response.json(
             {
               members,
-              profiles,
               self: {
                 codyUserId: selfCodyUserId,
                 nickname: session.nickname,

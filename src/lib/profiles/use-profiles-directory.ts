@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
+import {
+  PROFILES_DIRECTORY_SELECT,
+  type ProfilesDirectoryRow,
+} from "@/lib/profiles/profiles-directory-select";
 
 export type DirectoryProfile = {
   id: string;
@@ -32,15 +36,13 @@ export function useProfilesDirectory(enabled: boolean) {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles_directory")
-      .select(
-        "id, username, display_name, bio, about_me, avatar_url, avatar_color, xp, level, status, gender, country_code, last_seen",
-      )
+      .select(PROFILES_DIRECTORY_SELECT)
       .order("username", { ascending: true });
     if (!error && data) {
       const map: Record<string, DirectoryProfile> = {};
       const names: Record<string, string> = {};
-      for (const row of data as DirectoryProfile[]) {
-        map[row.id] = row;
+      for (const row of data as ProfilesDirectoryRow[]) {
+        map[row.id] = { ...row, display_name: null };
         if (row.username) names[row.username.toLowerCase()] = row.id;
       }
       setProfiles(map);

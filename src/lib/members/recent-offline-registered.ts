@@ -71,25 +71,39 @@ export function buildHybridOnlineMembers(
   return rows;
 }
 
+export const RECENT_OFFLINE_REGISTERED_LIMIT = 30;
+
 export function selectRecentOfflineRegisteredMembers(
   profiles: Record<string, DirectoryProfile>,
   registeredOnlineIds: Set<string>,
   viewerSupabaseId?: string,
 ): DirectoryProfile[] {
   const candidates = Object.values(profiles).filter((profile) => {
-    if (viewerSupabaseId && profile.id === viewerSupabaseId) return false;
+    if (
+      viewerSupabaseId &&
+      profile.id === viewerSupabaseId &&
+      registeredOnlineIds.has(viewerSupabaseId)
+    ) {
+      return false;
+    }
     if (registeredOnlineIds.has(profile.id)) return false;
     return true;
   });
 
   candidates.sort((a, b) => {
-    const aTs = a.last_seen ? new Date(a.last_seen).getTime() : 0;
-    const bTs = b.last_seen ? new Date(b.last_seen).getTime() : 0;
-    if (bTs !== aTs) return bTs - aTs;
+    const aHasLastSeen = Boolean(a.last_seen);
+    const bHasLastSeen = Boolean(b.last_seen);
+    if (aHasLastSeen && !bHasLastSeen) return -1;
+    if (!aHasLastSeen && bHasLastSeen) return 1;
+    if (aHasLastSeen && bHasLastSeen) {
+      const aTs = new Date(a.last_seen!).getTime();
+      const bTs = new Date(b.last_seen!).getTime();
+      if (bTs !== aTs) return bTs - aTs;
+    }
     return a.username.localeCompare(b.username);
   });
 
-  return candidates;
+  return candidates.slice(0, RECENT_OFFLINE_REGISTERED_LIMIT);
 }
 
 export function directoryProfileToCodyMember(profile: DirectoryProfile): CodyMember {

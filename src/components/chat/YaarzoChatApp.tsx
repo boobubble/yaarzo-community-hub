@@ -73,6 +73,7 @@ import {
 import { ConversationNavStrip } from "@/components/chat/RecentDmStrip";
 import { FindFriendsPanel, NotificationsPanel } from "@/components/chat/social/SocialPanels";
 import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
+import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
 import type { CodyPrivateConversation } from "@/lib/codychat-private";
 import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import {
@@ -521,38 +522,59 @@ function MembersPanel({
           </div>
         )}
 
-        {viewerSupabaseId && recentOffline.length ? (
+        {recentOffline.length ? (
           <>
             <p className="mb-1 mt-1 px-1 text-[9px] font-bold uppercase text-muted-foreground">Offline</p>
-            <div className="space-y-0.5">
-              {recentOffline.map((profile) => (
-                <button
-                  key={profile.id}
-                  type="button"
-                  onClick={() => onSelectRegisteredProfile(profile)}
-                  className="flex w-full items-center gap-2 rounded-md px-1 py-1.5 text-left hover:bg-secondary"
-                >
-                  <div className="relative size-8 shrink-0">
-                    {profile.avatar_url ? (
-                      <img src={profile.avatar_url} alt="" className="size-8 rounded-full border border-border object-cover" />
-                    ) : (
-                      <div className="flex size-8 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
-                        <Users className="size-3.5" />
+            <div>
+              {recentOffline.map((profile) => {
+                const displayName = profile.display_name || profile.username;
+                const isSelf = Boolean(viewerSupabaseId && profile.id === viewerSupabaseId);
+                return (
+                  <div
+                    key={profile.id}
+                    className="group flex w-full items-center gap-1 rounded-md px-1 py-[2px] hover:bg-secondary"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelectRegisteredProfile(profile)}
+                      aria-label={`Open ${displayName}'s profile`}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <div className="relative size-7 shrink-0">
+                        {profile.avatar_url ? (
+                          <img
+                            src={profile.avatar_url}
+                            alt=""
+                            className="size-7 rounded-full border border-border object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="flex size-7 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground">
+                            <Users className="size-3" />
+                          </div>
+                        )}
+                        <span className="absolute bottom-0 right-0 size-2 rounded-full border-2 border-card bg-muted-foreground" />
                       </div>
-                    )}
-                    <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-card bg-muted-foreground" />
+                      <p className="min-w-0 flex-1 truncate text-[10px] font-bold leading-none text-foreground">
+                        {displayName}
+                      </p>
+                    </button>
+                    {!isSelf ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 shrink-0 text-muted-foreground opacity-100 sm:opacity-80 sm:group-hover:opacity-100"
+                        aria-label={`Message ${profile.username}`}
+                        title="Message"
+                        onClick={() => onMessageMember(directoryProfileToCodyMember(profile))}
+                      >
+                        <Mail className="size-3.5" />
+                      </Button>
+                    ) : null}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[10px] font-bold text-foreground">
-                      {profile.display_name || profile.username}
-                    </p>
-                    <p className="truncate text-[8px] text-muted-foreground">
-                      @{profile.username}
-                      {profile.last_seen ? ` Â· Active ${timeAgo(profile.last_seen)} ago` : ""}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </>
         ) : null}
@@ -1170,6 +1192,7 @@ function EmptyChat({
   const isFindFriends = active === "Find Friends";
   const [codyDmConversations, setCodyDmConversations] = useState<CodyPrivateConversation[]>([]);
   const [dmActiveConversation, setDmActiveConversation] = useState<DirectConversation | null>(null);
+  const [dismissedStripKeys, setDismissedStripKeys] = useState<Set<string>>(() => new Set());
   const [activeMessageActionsId, setActiveMessageActionsId] = useState<string | null>(null);
   const [mediaFlags, setMediaFlags] = useState(mergeMediaConfig(null));
   const media = mergeMediaConfig(mediaFlags);
@@ -1209,23 +1232,62 @@ function EmptyChat({
     [registeredDm.conversations, codyDmConversations, profiles],
   );
 
+  const visibleDmStripItems = useMemo(
+    () => recentDmStripItems.filter((item) => !dismissedStripKeys.has(item.key)),
+    [recentDmStripItems, dismissedStripKeys],
+  );
+
+  const restoreStripConversation = useCallback((conversation: DirectConversation) => {
+    const key = conversationKey(conversation);
+    setDismissedStripKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
   const selectedDmStripKey = dmActiveConversation
     ? conversationKey(dmActiveConversation)
     : undefined;
 
   useEffect(() => {
     if (!pendingConversation) return;
+    restoreStripConversation(pendingConversation);
     setDmActiveConversation(pendingConversation);
     onClearPendingConversation?.();
-  }, [pendingConversation, onClearPendingConversation]);
+  }, [pendingConversation, onClearPendingConversation, restoreStripConversation]);
 
   const handleStripConversation = (conversation: DirectConversation) => {
+    restoreStripConversation(conversation);
     if (isDirectMessages) {
       setDmActiveConversation(conversation);
       return;
     }
     onOpenConversation(conversation);
   };
+
+  const handleCloseStripConversation = useCallback(
+    (item: RecentDmStripItem) => {
+      setDismissedStripKeys((prev) => {
+        if (prev.has(item.key)) return prev;
+        const next = new Set(prev);
+        next.add(item.key);
+        return next;
+      });
+
+      const closingActive =
+        isDirectMessages &&
+        dmActiveConversation &&
+        conversationKey(dmActiveConversation) === item.key;
+
+      if (closingActive) {
+        setDmActiveConversation(null);
+        onReturnToLiveChatroom();
+      }
+    },
+    [isDirectMessages, dmActiveConversation, onReturnToLiveChatroom],
+  );
 
   useEffect(() => {
     if (!activeMessageActionsId) return;
@@ -1684,9 +1746,10 @@ function EmptyChat({
           currentRoomName={selectedRoom?.name ?? (roomId != null ? "Community Chat" : undefined)}
           roomActive={isChat}
           onSelectCurrentRoom={onReturnToLiveChatroom}
-          items={recentDmStripItems}
+          items={visibleDmStripItems}
           selectedDmKey={isDirectMessages ? selectedDmStripKey : undefined}
           onOpenConversation={handleStripConversation}
+          onCloseConversation={handleCloseStripConversation}
         />
       ) : null}
 
@@ -1939,14 +2002,11 @@ export function YaarzoChat() {
   const [membersDesktop, setMembersDesktop] = useState(true);
   const [profile, setProfile] = useState<ProfileTarget | null>(null);
   const [isDesktop, setIsDesktop] = useState(true);
-  const [wide, setWide] = useState(true);
 
   useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 768px)");
-    const wideQuery = window.matchMedia("(min-width: 1280px)");
     const sync = () => {
       setIsDesktop(desktopQuery.matches);
-      setWide(wideQuery.matches);
       if (!desktopQuery.matches) {
         setLeftOpen(false);
         setMembersOpen(false);
@@ -1954,10 +2014,8 @@ export function YaarzoChat() {
     };
     sync();
     desktopQuery.addEventListener("change", sync);
-    wideQuery.addEventListener("change", sync);
     return () => {
       desktopQuery.removeEventListener("change", sync);
-      wideQuery.removeEventListener("change", sync);
     };
   }, []);
   const [guestName, setGuestName] = useState<string>();
@@ -1985,6 +2043,23 @@ export function YaarzoChat() {
     window.localStorage.setItem("yaarzo-theme", nextTheme);
   };
 
+  const loadRegisteredDirectory = useCallback(async () => {
+    try {
+      const response = await fetch("/api/chat/registered-members", { cache: "no-store" });
+      if (!response.ok) return;
+      const result = (await response.json()) as {
+        profiles?: import("@/lib/profiles/use-profiles-directory").DirectoryProfile[];
+      };
+      if (Array.isArray(result.profiles)) {
+        setServerProfiles(
+          Object.fromEntries(result.profiles.map((profile) => [profile.id, profile])),
+        );
+      }
+    } catch {
+      /* directory is optional fallback via client Supabase */
+    }
+  }, []);
+
   const loadMembers = useCallback(async () => {
     if (!guestName) {
       setMembers([]);
@@ -2000,20 +2075,20 @@ export function YaarzoChat() {
       }
       const result = (await response.json()) as {
         members?: CodyMember[];
-        profiles?: import("@/lib/profiles/use-profiles-directory").DirectoryProfile[];
         self?: { codyUserId?: string };
       };
       if (response.ok && Array.isArray(result.members)) setMembers(result.members);
-      if (response.ok && Array.isArray(result.profiles)) {
-        setServerProfiles(
-          Object.fromEntries(result.profiles.map((profile) => [profile.id, profile])),
-        );
-      }
       if (response.ok && result.self?.codyUserId) setSelfCodyUserId(result.self.codyUserId);
     } finally {
       setMembersLoading(false);
     }
   }, [guestName]);
+
+  useEffect(() => {
+    void loadRegisteredDirectory();
+    const interval = window.setInterval(() => void loadRegisteredDirectory(), 60_000);
+    return () => window.clearInterval(interval);
+  }, [loadRegisteredDirectory]);
 
   useEffect(() => {
     let activeRequest = true;
@@ -2157,8 +2232,10 @@ export function YaarzoChat() {
   };
   const toggleMembers = () => {
     if (isDesktop) {
-      setMembersDesktop((v) => !v);
-      if (!wide) setProfile(null);
+      setMembersDesktop((open) => {
+        if (!open) setProfile(null);
+        return !open;
+      });
       return;
     }
     const next = !membersOpen;
@@ -2177,9 +2254,9 @@ export function YaarzoChat() {
     openProfile({ kind: "self" });
   };
 
-  // Desktop: on narrower desktops, profile temporarily replaces members to protect chat width.
+  // Desktop right column shows either members or profile, never both.
   const showNavInline = isDesktop && navDesktop;
-  const showMembersInline = isDesktop && membersDesktop && (wide || !profile);
+  const showMembersInline = isDesktop && membersDesktop && !profile;
   const showProfileInline = isDesktop && !!profile;
   const drawerOpen = !isDesktop && (leftOpen || membersOpen || !!profile);
 
@@ -2283,7 +2360,10 @@ export function YaarzoChat() {
             hasCodySession={hasCodySession}
             selfCodyUserId={selfCodyUserId}
             onGuestLogin={() => setGuestDialogOpen(true)}
-            onMembersRefresh={() => void loadMembers()}
+            onMembersRefresh={() => {
+              void loadMembers();
+              void loadRegisteredDirectory();
+            }}
             onOpenSupabaseDm={openSupabaseDmFromFriend}
             onOpenConversation={openConversation}
             onRoomNavSync={setChatRoomNav}

@@ -1,3 +1,5 @@
+import { X } from "lucide-react";
+
 import type { DirectConversation } from "@/lib/dm/direct-conversation";
 import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
 
@@ -14,6 +16,7 @@ export function ConversationNavStrip({
   items,
   selectedDmKey,
   onOpenConversation,
+  onCloseConversation,
 }: {
   currentRoomName?: string;
   roomActive: boolean;
@@ -21,6 +24,7 @@ export function ConversationNavStrip({
   items: RecentDmStripItem[];
   selectedDmKey?: string;
   onOpenConversation: (conversation: DirectConversation) => void;
+  onCloseConversation: (item: RecentDmStripItem) => void;
 }) {
   const showRoom = !!currentRoomName;
 
@@ -49,26 +53,42 @@ export function ConversationNavStrip({
         }`}
       >
         {items.map((item) => (
-          <button
+          <div
             key={item.key}
-            type="button"
-            onClick={() => onOpenConversation(item.conversation)}
-            className={`topic-chip inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[10px] font-semibold transition ${chipClass(selectedDmKey === item.key)}`}
+            className={`topic-chip inline-flex h-7 shrink-0 items-center gap-0.5 rounded-full border pl-1.5 pr-0.5 text-[10px] font-semibold transition ${chipClass(selectedDmKey === item.key)}`}
           >
-            {item.avatarUrl ? (
-              <img
-                src={item.avatarUrl}
-                alt=""
-                className="size-5 rounded-full border border-border object-cover"
-              />
-            ) : null}
-            <span className="max-w-[120px] truncate">{item.label}</span>
-            {item.unread > 0 ? (
-              <span className="rounded-full bg-alert px-1.5 text-[9px] font-bold leading-4 text-alert-foreground">
-                {item.unread}
-              </span>
-            ) : null}
-          </button>
+            <button
+              type="button"
+              onClick={() => onOpenConversation(item.conversation)}
+              className="inline-flex min-w-0 items-center gap-1.5 rounded-full py-0 text-left"
+            >
+              {item.avatarUrl ? (
+                <img
+                  src={item.avatarUrl}
+                  alt=""
+                  className="size-5 shrink-0 rounded-full border border-border object-cover"
+                />
+              ) : null}
+              <span className="max-w-[120px] truncate">{item.label}</span>
+              {item.unread > 0 ? (
+                <span className="rounded-full bg-alert px-1.5 text-[9px] font-bold leading-4 text-alert-foreground">
+                  {item.unread}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCloseConversation(item);
+              }}
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+              aria-label={`Close ${item.label} conversation`}
+              title="Close conversation"
+            >
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          </div>
         ))}
       </div>
     </div>

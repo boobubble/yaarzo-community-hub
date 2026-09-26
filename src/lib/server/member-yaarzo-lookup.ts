@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 import type { CodyMember } from "@/lib/codychat-adapter";
+import {
+  PROFILES_DIRECTORY_SELECT,
+  type ProfilesDirectoryRow,
+} from "@/lib/profiles/profiles-directory-select";
 
 let usernameMapCache: { at: number; map: Map<string, string> } | null = null;
 const CACHE_MS = 45_000;
@@ -32,11 +36,15 @@ export async function loadRegisteredMemberProfiles(): Promise<RegisteredMemberPr
 
   const { data, error } = await admin
     .from("profiles_directory")
-    .select("id, username, display_name, bio, about_me, avatar_url, avatar_color, xp, level, status, gender, country_code, last_seen")
+    .select(PROFILES_DIRECTORY_SELECT)
     .order("username", { ascending: true });
 
   if (error || !data) return [];
-  return data as RegisteredMemberProfile[];
+  return (data as ProfilesDirectoryRow[]).map((row) => ({
+    ...row,
+    display_name: null,
+    status: row.status ?? null,
+  }));
 }
 
 async function loadUsernameToIdMap(): Promise<Map<string, string>> {
