@@ -38,3 +38,5 @@ dist-ssr
 
 # Local Lovable sync review
 .lovable-review/
+.vercel
+.env*
