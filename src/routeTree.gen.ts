@@ -10,7 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ChatroomRouteImport } from './routes/chatroom'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminSectionRouteImport } from './routes/admin/$section'
+import { Route as AdminChatroomsRouteImport } from './routes/admin/chatrooms'
+import { Route as AdminFeaturesRouteImport } from './routes/admin/features'
+import { Route as AdminModerationRouteImport } from './routes/admin/moderation'
+import { Route as AdminStaffRouteImport } from './routes/admin/staff'
+import { Route as AdminStickersRouteImport } from './routes/admin/stickers'
+import { Route as AdminSystemRouteImport } from './routes/admin/system'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as ApiAuthUsernameLoginRouteImport } from './routes/api/auth/username-login'
 import { Route as ApiChatCapabilitiesRouteImport } from './routes/api/chat/capabilities'
 import { Route as ApiChatEmoticonsRouteImport } from './routes/api/chat/emoticons'
@@ -35,10 +45,60 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatroomRoute = ChatroomRouteImport.update({
   id: '/chatroom',
   path: '/chatroom',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSectionRoute = AdminSectionRouteImport.update({
+  id: '/$section',
+  path: '/$section',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminChatroomsRoute = AdminChatroomsRouteImport.update({
+  id: '/chatrooms',
+  path: '/chatrooms',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFeaturesRoute = AdminFeaturesRouteImport.update({
+  id: '/features',
+  path: '/features',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminModerationRoute = AdminModerationRouteImport.update({
+  id: '/moderation',
+  path: '/moderation',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStaffRoute = AdminStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStickersRoute = AdminStickersRouteImport.update({
+  id: '/stickers',
+  path: '/stickers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSystemRoute = AdminSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ApiAuthUsernameLoginRoute = ApiAuthUsernameLoginRouteImport.update({
   id: '/api/auth/username-login',
@@ -135,7 +195,17 @@ const ApiChatPrivateMessagesRoute = ApiChatPrivateMessagesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/chatroom': typeof ChatroomRoute
+  '/admin/$section': typeof AdminSectionRoute
+  '/admin/chatrooms': typeof AdminChatroomsRoute
+  '/admin/features': typeof AdminFeaturesRoute
+  '/admin/moderation': typeof AdminModerationRoute
+  '/admin/staff': typeof AdminStaffRoute
+  '/admin/stickers': typeof AdminStickersRoute
+  '/admin/system': typeof AdminSystemRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
@@ -158,6 +228,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chatroom': typeof ChatroomRoute
+  '/admin/$section': typeof AdminSectionRoute
+  '/admin/chatrooms': typeof AdminChatroomsRoute
+  '/admin/features': typeof AdminFeaturesRoute
+  '/admin/moderation': typeof AdminModerationRoute
+  '/admin/staff': typeof AdminStaffRoute
+  '/admin/stickers': typeof AdminStickersRoute
+  '/admin/system': typeof AdminSystemRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin': typeof AdminIndexRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
@@ -180,7 +259,17 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/chatroom': typeof ChatroomRoute
+  '/admin/$section': typeof AdminSectionRoute
+  '/admin/chatrooms': typeof AdminChatroomsRoute
+  '/admin/features': typeof AdminFeaturesRoute
+  '/admin/moderation': typeof AdminModerationRoute
+  '/admin/staff': typeof AdminStaffRoute
+  '/admin/stickers': typeof AdminStickersRoute
+  '/admin/system': typeof AdminSystemRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
@@ -204,7 +293,17 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/chatroom'
+    | '/admin/$section'
+    | '/admin/chatrooms'
+    | '/admin/features'
+    | '/admin/moderation'
+    | '/admin/staff'
+    | '/admin/stickers'
+    | '/admin/system'
+    | '/admin/users'
+    | '/admin/'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
     | '/api/chat/emoticons'
@@ -227,6 +326,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/chatroom'
+    | '/admin/$section'
+    | '/admin/chatrooms'
+    | '/admin/features'
+    | '/admin/moderation'
+    | '/admin/staff'
+    | '/admin/stickers'
+    | '/admin/system'
+    | '/admin/users'
+    | '/admin'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
     | '/api/chat/emoticons'
@@ -248,7 +356,17 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/chatroom'
+    | '/admin/$section'
+    | '/admin/chatrooms'
+    | '/admin/features'
+    | '/admin/moderation'
+    | '/admin/staff'
+    | '/admin/stickers'
+    | '/admin/system'
+    | '/admin/users'
+    | '/admin/'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
     | '/api/chat/emoticons'
@@ -271,6 +389,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   ChatroomRoute: typeof ChatroomRoute
   ApiAuthUsernameLoginRoute: typeof ApiAuthUsernameLoginRoute
   ApiChatCapabilitiesRoute: typeof ApiChatCapabilitiesRoute
@@ -301,12 +420,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chatroom': {
       id: '/chatroom'
       path: '/chatroom'
       fullPath: '/chatroom'
       preLoaderRoute: typeof ChatroomRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/$section': {
+      id: '/admin/$section'
+      path: '/$section'
+      fullPath: '/admin/$section'
+      preLoaderRoute: typeof AdminSectionRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/chatrooms': {
+      id: '/admin/chatrooms'
+      path: '/chatrooms'
+      fullPath: '/admin/chatrooms'
+      preLoaderRoute: typeof AdminChatroomsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/features': {
+      id: '/admin/features'
+      path: '/features'
+      fullPath: '/admin/features'
+      preLoaderRoute: typeof AdminFeaturesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/moderation': {
+      id: '/admin/moderation'
+      path: '/moderation'
+      fullPath: '/admin/moderation'
+      preLoaderRoute: typeof AdminModerationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/staff': {
+      id: '/admin/staff'
+      path: '/staff'
+      fullPath: '/admin/staff'
+      preLoaderRoute: typeof AdminStaffRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/stickers': {
+      id: '/admin/stickers'
+      path: '/stickers'
+      fullPath: '/admin/stickers'
+      preLoaderRoute: typeof AdminStickersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/system': {
+      id: '/admin/system'
+      path: '/system'
+      fullPath: '/admin/system'
+      preLoaderRoute: typeof AdminSystemRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/api/auth/username-login': {
       id: '/api/auth/username-login'
@@ -437,8 +626,35 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminSectionRoute: typeof AdminSectionRoute
+  AdminChatroomsRoute: typeof AdminChatroomsRoute
+  AdminFeaturesRoute: typeof AdminFeaturesRoute
+  AdminModerationRoute: typeof AdminModerationRoute
+  AdminStaffRoute: typeof AdminStaffRoute
+  AdminStickersRoute: typeof AdminStickersRoute
+  AdminSystemRoute: typeof AdminSystemRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminSectionRoute: AdminSectionRoute,
+  AdminChatroomsRoute: AdminChatroomsRoute,
+  AdminFeaturesRoute: AdminFeaturesRoute,
+  AdminModerationRoute: AdminModerationRoute,
+  AdminStaffRoute: AdminStaffRoute,
+  AdminStickersRoute: AdminStickersRoute,
+  AdminSystemRoute: AdminSystemRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   ChatroomRoute: ChatroomRoute,
   ApiAuthUsernameLoginRoute: ApiAuthUsernameLoginRoute,
   ApiChatCapabilitiesRoute: ApiChatCapabilitiesRoute,
