@@ -1926,7 +1926,7 @@ export function YaarzoChat() {
   const { session, user, ready } = useAuth();
   const registeredDm = useRegisteredDmContext();
   const notifications = useNotifications();
-  const directory = useProfilesDirectory(!!user);
+  const directory = useProfilesDirectory(true);
   const registeredOnlineIds = useRegisteredPresence(user?.id);
   const [pendingConversation, setPendingConversation] = useState<DirectConversation | null>(null);
   const [selfCodyUserId, setSelfCodyUserId] = useState<string>();
