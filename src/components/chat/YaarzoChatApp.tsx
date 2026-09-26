@@ -146,7 +146,7 @@ function Brand() {
       </div>
       <div className="min-w-0">
         <div className="font-display text-[19px] font-extrabold italic leading-none text-foreground">Yaarzo</div>
-        <div className="mt-1 truncate text-[8px] font-bold uppercase text-muted-foreground">Chat Â· Connect Â· Belong</div>
+        <div className="mt-1 truncate text-[8px] font-bold uppercase text-muted-foreground">Chat Ã‚Â· Connect Ã‚Â· Belong</div>
       </div>
       <MoreHorizontal className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
     </div>
@@ -247,7 +247,7 @@ function Navigation({
                   );
                 })
               ) : (
-                <p className="px-2 py-1 text-[9px] text-muted-foreground">Loading rooms…</p>
+                <p className="px-2 py-1 text-[9px] text-muted-foreground">Loading roomsâ€¦</p>
               )}
             </div>
           ) : (
@@ -325,7 +325,7 @@ function LeftSidebar({
       <div className="px-2.5 pt-2.5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input aria-label="Search Yaarzo" placeholder="Search rooms, users, postsâ€¦" className="h-8 border-sidebar-border bg-background/55 pl-8 text-[10px]" />
+          <Input aria-label="Search Yaarzo" placeholder="Search rooms, users, postsÃ¢â‚¬Â¦" className="h-8 border-sidebar-border bg-background/55 pl-8 text-[10px]" />
         </div>
       </div>
       <Navigation
@@ -548,7 +548,7 @@ function MembersPanel({
                     </p>
                     <p className="truncate text-[8px] text-muted-foreground">
                       @{profile.username}
-                      {profile.last_seen ? ` · Active ${timeAgo(profile.last_seen)} ago` : ""}
+                      {profile.last_seen ? ` Â· Active ${timeAgo(profile.last_seen)} ago` : ""}
                     </p>
                   </div>
                 </button>
@@ -875,7 +875,7 @@ function GuestLoginDialog({ open, onOpenChange, onAuthenticated }: { open: boole
           </div>
           {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
           <Button type="submit" className="accent-button w-full" disabled={submitting || !gender}>
-            {submitting ? "Connectingâ€¦" : "Continue as Guest"}
+            {submitting ? "ConnectingÃ¢â‚¬Â¦" : "Continue as Guest"}
           </Button>
         </form>
       </DialogContent>
@@ -912,9 +912,9 @@ function ProfilePanel({
       : undefined;
   const title = member ? member.name : guestName ?? "My profile";
   const subtitle = member
-    ? [member.gender, member.country].filter(Boolean).join(" Â· ") || "Online in this room"
+    ? [member.gender, member.country].filter(Boolean).join(" Ã‚Â· ") || "Online in this room"
     : guestName
-      ? "Guest Â· CodyChat session"
+      ? "Guest Ã‚Â· CodyChat session"
       : "Not signed in";
   const canMessage =
     !!member &&
@@ -940,7 +940,7 @@ function ProfilePanel({
         <p className="mt-1 text-[9px] text-muted-foreground">{subtitle}</p>
         {supabaseProfile ? (
           <p className="mt-1 text-[9px] text-muted-foreground">
-            @{supabaseProfile.username} · Level {supabaseProfile.level}
+            @{supabaseProfile.username} Â· Level {supabaseProfile.level}
           </p>
         ) : null}
         {canMessage ? (
@@ -963,9 +963,9 @@ function ProfilePanel({
         )}
         <div className="mt-5 grid w-full grid-cols-3 gap-1.5">
           {[
-            ["â€”", "Posts"],
-            ["â€”", "Friends"],
-            [member?.level !== undefined ? String(member.level) : "â€”", "Level"],
+            ["Ã¢â‚¬â€", "Posts"],
+            ["Ã¢â‚¬â€", "Friends"],
+            [member?.level !== undefined ? String(member.level) : "Ã¢â‚¬â€", "Level"],
           ].map(([value, label]) => (
             <div key={label} className="rounded-md border border-border bg-card py-2 text-center">
               <p className="text-sm font-extrabold text-foreground">{value}</p>
@@ -1868,7 +1868,7 @@ function EmptyChat({
           </div>
         ) : (
           <div className="m-auto text-center text-[11px] text-muted-foreground">
-            Connected. Waiting for live messages…
+            Connected. Waiting for live messagesâ€¦
           </div>
         )}
       </main>
@@ -1903,7 +1903,7 @@ function EmptyChat({
                 : undefined
             }
             placeholder={
-              guestName ? "Write a message…" : "Sign in or continue as guest to send"
+              guestName ? "Write a messageâ€¦" : "Sign in or continue as guest to send"
             }
             onSend={(content) => sendMessage(undefined, content)}
             onUploadFile={uploadChatFile}
@@ -2269,6 +2269,7 @@ export function YaarzoChat() {
             guestName={guestName}
             registeredUserId={user?.id}
             profiles={directory.profiles}
+                registeredOnlineIds={registeredOnlineIds}
             pendingConversation={pendingConversation}
             onClearPendingConversation={() => setPendingConversation(null)}
             hasCodySession={hasCodySession}
@@ -2289,6 +2290,7 @@ export function YaarzoChat() {
                 members={members}
                 loading={membersLoading}
                 profiles={directory.profiles}
+                registeredOnlineIds={registeredOnlineIds}
                 viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
                 onClose={() => setMembersDesktop(false)}
@@ -2325,6 +2327,7 @@ export function YaarzoChat() {
                 members={members}
                 loading={membersLoading}
                 profiles={directory.profiles}
+                registeredOnlineIds={registeredOnlineIds}
                 viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
                 onClose={closeDrawers}
