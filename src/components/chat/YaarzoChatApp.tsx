@@ -84,6 +84,7 @@ import { timeAgo } from "@/lib/notifications/notifications-provider";
 import type { CodyMember } from "@/lib/codychat-adapter";
 import { mergeMediaConfig } from "@/lib/media/media-providers-config";
 import { useProfilesDirectory } from "@/lib/profiles/use-profiles-directory";
+import { useRegisteredPresence } from "@/lib/members/use-registered-presence";
 import { useNotifications } from "@/lib/notifications/notifications-provider";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
@@ -414,6 +415,7 @@ function MembersPanel({
   members,
   loading,
   profiles,
+  registeredOnlineIds,
   viewerSupabaseId,
   selfCodyUserId,
   onClose,
@@ -424,6 +426,7 @@ function MembersPanel({
   members: CodyMember[];
   loading: boolean;
   profiles: Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>;
+  registeredOnlineIds: Set<string>;
   viewerSupabaseId?: string;
   selfCodyUserId?: string;
   onClose: () => void;
@@ -432,13 +435,13 @@ function MembersPanel({
   onMessageMember: (member: CodyMember) => void;
 }) {
   const onlineRows = useMemo(
-    () => buildHybridOnlineMembers(members, profiles),
-    [members, profiles],
+    () => buildHybridOnlineMembers(members, profiles, registeredOnlineIds),
+    [members, profiles, registeredOnlineIds],
   );
 
   const recentOffline = useMemo(
-    () => selectRecentOfflineRegisteredMembers(profiles, members, viewerSupabaseId),
-    [profiles, members, viewerSupabaseId],
+    () => selectRecentOfflineRegisteredMembers(profiles, registeredOnlineIds, viewerSupabaseId),
+    [profiles, registeredOnlineIds, viewerSupabaseId],
   );
 
   const renderOnlineRow = (row: ReturnType<typeof buildHybridOnlineMembers>[number]) => {
@@ -520,7 +523,7 @@ function MembersPanel({
 
         {viewerSupabaseId && recentOffline.length ? (
           <>
-            <p className="mb-1 mt-1 px-1 text-[9px] font-bold uppercase text-muted-foreground">Recent offline</p>
+            <p className="mb-1 mt-1 px-1 text-[9px] font-bold uppercase text-muted-foreground">Offline</p>
             <div className="space-y-0.5">
               {recentOffline.map((profile) => (
                 <button
@@ -1924,6 +1927,7 @@ export function YaarzoChat() {
   const registeredDm = useRegisteredDmContext();
   const notifications = useNotifications();
   const directory = useProfilesDirectory(!!user);
+  const registeredOnlineIds = useRegisteredPresence(user?.id);
   const [pendingConversation, setPendingConversation] = useState<DirectConversation | null>(null);
   const [selfCodyUserId, setSelfCodyUserId] = useState<string>();
   const [active, setActive] = useState("Chatrooms");
@@ -2350,6 +2354,15 @@ export function YaarzoChat() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

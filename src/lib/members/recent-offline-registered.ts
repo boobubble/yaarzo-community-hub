@@ -1,8 +1,6 @@
 import type { CodyMember } from "@/lib/codychat-adapter";
 import type { DirectoryProfile } from "@/lib/profiles/use-profiles-directory";
 
-export const RECENT_OFFLINE_REGISTERED_LIMIT = 18;
-
 export type HybridOnlineMember = {
   key: string;
   codyMember: CodyMember;
@@ -13,53 +11,43 @@ export type HybridOnlineMember = {
 };
 
 /**
- * Cody live roster supplies presence; registered rows are deduped by Supabase id
- * and enriched from profiles_directory. Guests stay Cody-only (no Supabase row).
+ * Registered presence comes from Supabase Realtime Presence.
+ * Guest presence comes from the CodyChat live roster.
  */
 export function buildHybridOnlineMembers(
   codyMembers: CodyMember[],
   profiles: Record<string, DirectoryProfile>,
+  registeredOnlineIds: Set<string>,
 ): HybridOnlineMember[] {
-  const registeredBySupabaseId = new Map<string, CodyMember>();
-  const guests: CodyMember[] = [];
-
-  for (const member of codyMembers) {
-    const supabaseId = member.yaarzoUserId?.trim();
-    if (supabaseId) {
-      if (!registeredBySupabaseId.has(supabaseId)) {
-        registeredBySupabaseId.set(supabaseId, member);
-      }
-      continue;
-    }
-    guests.push(member);
-  }
-
   const rows: HybridOnlineMember[] = [];
 
-  for (const [supabaseId, codyMember] of registeredBySupabaseId) {
+  for (const supabaseId of registeredOnlineIds) {
     const profile = profiles[supabaseId];
+    if (!profile) continue;
+
     rows.push({
       key: `registered:${supabaseId}`,
-      codyMember,
-      displayName: profile?.display_name || profile?.username || codyMember.name,
+      codyMember: {
+        id: profile.id,
+        name: profile.username,
+        yaarzoUserId: profile.id,
+        ...(profile.avatar_url ? { avatar: profile.avatar_url } : {}),
+        ...(profile.level !== undefined ? { level: profile.level } : {}),
+        ...(profile.gender ? { gender: profile.gender } : {}),
+      },
+      displayName: profile.display_name || profile.username,
       subtitle:
-        [
-          profile?.gender ?? codyMember.gender,
-          profile?.level !== undefined
-            ? `Level ${profile.level}`
-            : codyMember.level !== undefined
-              ? `Level ${codyMember.level}`
-              : undefined,
-          "Registered",
-        ]
+        [profile.gender, `Level ${profile.level}`, "Registered"]
           .filter(Boolean)
           .join(" · ") || "Online · Registered",
-      avatarUrl: profile?.avatar_url ?? codyMember.avatar,
+      avatarUrl: profile.avatar_url ?? undefined,
       isRegistered: true,
     });
   }
 
-  for (const codyMember of guests) {
+  for (const codyMember of codyMembers) {
+    if (codyMember.yaarzoUserId) continue;
+
     rows.push({
       key: `guest:${codyMember.id}`,
       codyMember,
@@ -77,29 +65,20 @@ export function buildHybridOnlineMembers(
     });
   }
 
-  rows.sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }));
+  rows.sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }),
+  );
   return rows;
-}
-
-/** Cody `yaarzoUserId` is the stable Supabase profile id when Bridge-linked. */
-export function onlineRegisteredSupabaseIds(members: CodyMember[]): Set<string> {
-  const ids = new Set<string>();
-  for (const member of members) {
-    if (member.yaarzoUserId) ids.add(member.yaarzoUserId);
-  }
-  return ids;
 }
 
 export function selectRecentOfflineRegisteredMembers(
   profiles: Record<string, DirectoryProfile>,
-  onlineMembers: CodyMember[],
+  registeredOnlineIds: Set<string>,
   viewerSupabaseId?: string,
 ): DirectoryProfile[] {
-  const onlineRegistered = onlineRegisteredSupabaseIds(onlineMembers);
-
   const candidates = Object.values(profiles).filter((profile) => {
     if (viewerSupabaseId && profile.id === viewerSupabaseId) return false;
-    if (onlineRegistered.has(profile.id)) return false;
+    if (registeredOnlineIds.has(profile.id)) return false;
     return true;
   });
 
@@ -110,7 +89,7 @@ export function selectRecentOfflineRegisteredMembers(
     return a.username.localeCompare(b.username);
   });
 
-  return candidates.slice(0, RECENT_OFFLINE_REGISTERED_LIMIT);
+  return candidates;
 }
 
 export function directoryProfileToCodyMember(profile: DirectoryProfile): CodyMember {
