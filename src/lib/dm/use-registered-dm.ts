@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { markDmConversationRead } from "@/lib/dm/dm-read";
 import {
   buildDmChannel,
-  DM_MESSAGES_INSERT_FILTER,
   isRemoteDmChannel,
   isUuid,
   parseDmChannel,
@@ -177,7 +176,7 @@ export function useRegisteredDm(meId: string | undefined) {
       .channel(`registered-dm-${meId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: DM_MESSAGES_INSERT_FILTER },
+        { event: "INSERT", schema: "public", table: "messages" },
         (payload) => {
           const row = payload.new as RegisteredDmMessage;
           if (!isRemoteDmChannel(row.channel_id, meId)) return;
