@@ -76,29 +76,11 @@ export function HomePage() {
       /* ignore */
     }
   }, []);
-
+
   useEffect(() => {
     if (!ready) return;
-
-    let active = true;
-    void hasCodySession()
-      .then((authenticated) => {
-        if (!active) return;
-        if (authenticated) {
-        }
-      })
-      .finally(() => {
-        if (active) setCheckingSession(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [ready, user, navigate]);
-
-  if (ready && user) {
-    return null;
-  }
+    setCheckingSession(false);
+  }, [ready]);
 
   if (checkingSession && ready) {
     return (
@@ -400,6 +382,8 @@ export function HomePage() {
     </div>
   );
 }
+
+
 
 
 
