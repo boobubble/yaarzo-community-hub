@@ -80,10 +80,6 @@ export function HomePage() {
   useEffect(() => {
     if (!ready) return;
 
-    if (user) {
-      return;
-    }
-
     let active = true;
     void hasCodySession()
       .then((authenticated) => {
@@ -404,4 +400,5 @@ export function HomePage() {
     </div>
   );
 }
+
 
