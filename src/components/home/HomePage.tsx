@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+﻿import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Menu, Moon, Rocket, Sun, X } from "lucide-react";
 
@@ -19,6 +19,7 @@ import { HomePoetrySeo } from "@/components/home/sections/HomePoetry";
 import { PillAvatar } from "@/components/home/welcome-primitives";
 import { WELCOME_THEME_CSS } from "@/components/home/welcome-theme-css";
 import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
 import { HOME_NAV_LINKS } from "@/lib/home/home-routes";
 import { HOME_SEO_H1 } from "@/lib/seo/home-page";
@@ -108,7 +109,7 @@ export function HomePage() {
   if (checkingSession && ready) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#070713] text-white/70">
-        <p className="text-sm">Loading…</p>
+        <p className="text-sm">Loadingâ€¦</p>
       </div>
     );
   }
@@ -157,7 +158,7 @@ export function HomePage() {
                 background: "linear-gradient(135deg,#8b5cf6,#3b82f6)",
               }}
             >
-              💬
+              ðŸ’¬
             </span>
             <span className="text-lg font-extrabold tracking-tight">Yaarzo</span>
           </a>
@@ -293,7 +294,7 @@ export function HomePage() {
                   </span>
                 </h1>
                 <p className="mt-4 text-base font-semibold opacity-80 sm:text-lg">
-                  Premium live chat — plus the full Yaarzo social platform, rolling out module by module.
+                  Premium live chat â€” plus the full Yaarzo social platform, rolling out module by module.
                 </p>
                 <p className="mt-3 max-w-xl text-sm opacity-65 sm:text-base">{cfg.heroSubtitle}</p>
 
@@ -394,45 +395,6 @@ export function HomePage() {
           Test Clean CodyChat
         </button>
       </div>
-
-            <div className="mx-auto max-w-7xl px-4 py-6 text-center">
-        <button
-          type="button"
-          onClick={async () => {
-            const { data } = await supabase.auth.getSession();
-            const accessToken = data.session?.access_token;
-
-            if (!accessToken) {
-              alert("Please sign in first.");
-              return;
-            }
-
-            const response = await fetch("/api/chat/native-sso", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
-            });
-
-            const result = (await response.json()) as {
-              url?: string;
-              error?: string;
-            };
-
-            if (!response.ok || !result.url) {
-              alert(result.error ?? "Clean chat test failed.");
-              return;
-            }
-
-            window.location.href = result.url;
-          }}
-          className="rounded-xl bg-white px-5 py-3 font-bold text-black"
-        >
-          Test Clean CodyChat
-        </button>
-      </div>
-
-      <HomeFooter />
       <HomeFooter />
 
       <HomeJoinDialog
@@ -444,3 +406,5 @@ export function HomePage() {
     </div>
   );
 }
+
+
