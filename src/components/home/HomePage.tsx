@@ -81,7 +81,6 @@ export function HomePage() {
     if (!ready) return;
 
     if (user) {
-      void navigate({ to: "/chatroom", replace: true });
       return;
     }
 
@@ -90,7 +89,6 @@ export function HomePage() {
       .then((authenticated) => {
         if (!active) return;
         if (authenticated) {
-          void navigate({ to: "/chatroom", replace: true });
         }
       })
       .finally(() => {
@@ -406,5 +404,4 @@ export function HomePage() {
     </div>
   );
 }
-
 
