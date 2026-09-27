@@ -358,6 +358,81 @@ export function HomePage() {
         </main>
       </HomeEntryProvider>
 
+            <div className="mx-auto max-w-7xl px-4 py-6 text-center">
+        <button
+          type="button"
+          onClick={async () => {
+            const { data } = await supabase.auth.getSession();
+            const accessToken = data.session?.access_token;
+
+            if (!accessToken) {
+              alert("Please sign in first.");
+              return;
+            }
+
+            const response = await fetch("/api/chat/native-sso", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+
+            const result = (await response.json()) as {
+              url?: string;
+              error?: string;
+            };
+
+            if (!response.ok || !result.url) {
+              alert(result.error ?? "Clean chat test failed.");
+              return;
+            }
+
+            window.location.href = result.url;
+          }}
+          className="rounded-xl bg-white px-5 py-3 font-bold text-black"
+        >
+          Test Clean CodyChat
+        </button>
+      </div>
+
+            <div className="mx-auto max-w-7xl px-4 py-6 text-center">
+        <button
+          type="button"
+          onClick={async () => {
+            const { data } = await supabase.auth.getSession();
+            const accessToken = data.session?.access_token;
+
+            if (!accessToken) {
+              alert("Please sign in first.");
+              return;
+            }
+
+            const response = await fetch("/api/chat/native-sso", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+
+            const result = (await response.json()) as {
+              url?: string;
+              error?: string;
+            };
+
+            if (!response.ok || !result.url) {
+              alert(result.error ?? "Clean chat test failed.");
+              return;
+            }
+
+            window.location.href = result.url;
+          }}
+          className="rounded-xl bg-white px-5 py-3 font-bold text-black"
+        >
+          Test Clean CodyChat
+        </button>
+      </div>
+
+      <HomeFooter />
       <HomeFooter />
 
       <HomeJoinDialog
