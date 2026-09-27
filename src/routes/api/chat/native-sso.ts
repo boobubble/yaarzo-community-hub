@@ -97,7 +97,7 @@ export const Route = createFileRoute("/api/chat/native-sso")({
 
           return Response.json(
             {
-              url: `https://chat-test.yaarzo.com/yaarzo-sso.php?token=${encodeURIComponent(token)}`,
+              url: `https://chat.yaarzo.com/chatroom/yaarzo-sso.php?token=${encodeURIComponent(token)}`,
             },
             {
               headers: {
