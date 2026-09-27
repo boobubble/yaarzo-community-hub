@@ -1,5 +1,5 @@
 /** Public CodyChat origin used for asset URLs in message rendering. */
-export const CODYCHAT_PUBLIC_ORIGIN = "https://chat.yaarzo.com";
+export const CODYCHAT_PUBLIC_ORIGIN = "https://chat-test.yaarzo.com";
 
 export function resolveCodyPublicUrl(pathOrUrl: string) {
   const value = pathOrUrl.trim();
@@ -18,3 +18,4 @@ export function isSafeCodyPublicUrl(url: string) {
     return false;
   }
 }
+

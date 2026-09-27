@@ -1,4 +1,4 @@
-const CODYCHAT_ORIGIN = "https://chat.yaarzo.com";
+const CODYCHAT_ORIGIN = "https://chat-test.yaarzo.com";
 const SESSION_COOKIE = "yaarzo_cody_session";
 
 export type CodySession = {
