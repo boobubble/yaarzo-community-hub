@@ -1980,7 +1980,7 @@ function EmptyChat({
       {isChat ? (
         <footer className="premium-panel shrink-0 border-t border-border bg-card/90 p-2.5">
           <ChatComposer
-            disabled={!guestName}
+            disabled={!guestName && !registeredUserId}
             sending={sending}
             uploading={uploading}
             canUpload={capabilities?.canUploadChat ?? false}
