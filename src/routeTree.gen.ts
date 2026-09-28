@@ -28,6 +28,7 @@ import { Route as ApiChatGuestLoginRouteImport } from './routes/api/chat/guest-l
 import { Route as ApiChatLogoutRouteImport } from './routes/api/chat/logout'
 import { Route as ApiChatMembersRouteImport } from './routes/api/chat/members'
 import { Route as ApiChatMessagesRouteImport } from './routes/api/chat/messages'
+import { Route as ApiChatNativeSsoRouteImport } from './routes/api/chat/native-sso'
 import { Route as ApiChatRegisteredLoginRouteImport } from './routes/api/chat/registered-login'
 import { Route as ApiChatRegisteredMembersRouteImport } from './routes/api/chat/registered-members'
 import { Route as ApiChatReportRouteImport } from './routes/api/chat/report'
@@ -135,6 +136,11 @@ const ApiChatMessagesRoute = ApiChatMessagesRouteImport.update({
   path: '/api/chat/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatNativeSsoRoute = ApiChatNativeSsoRouteImport.update({
+  id: '/api/chat/native-sso',
+  path: '/api/chat/native-sso',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRegisteredLoginRoute = ApiChatRegisteredLoginRouteImport.update({
   id: '/api/chat/registered-login',
   path: '/api/chat/registered-login',
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
   '/api/chat/messages': typeof ApiChatMessagesRoute
+  '/api/chat/native-sso': typeof ApiChatNativeSsoRoute
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
   '/api/chat/registered-members': typeof ApiChatRegisteredMembersRoute
   '/api/chat/report': typeof ApiChatReportRoute
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
   '/api/chat/messages': typeof ApiChatMessagesRoute
+  '/api/chat/native-sso': typeof ApiChatNativeSsoRoute
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
   '/api/chat/registered-members': typeof ApiChatRegisteredMembersRoute
   '/api/chat/report': typeof ApiChatReportRoute
@@ -277,6 +285,7 @@ export interface FileRoutesById {
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
   '/api/chat/messages': typeof ApiChatMessagesRoute
+  '/api/chat/native-sso': typeof ApiChatNativeSsoRoute
   '/api/chat/registered-login': typeof ApiChatRegisteredLoginRoute
   '/api/chat/registered-members': typeof ApiChatRegisteredMembersRoute
   '/api/chat/report': typeof ApiChatReportRoute
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | '/api/chat/logout'
     | '/api/chat/members'
     | '/api/chat/messages'
+    | '/api/chat/native-sso'
     | '/api/chat/registered-login'
     | '/api/chat/registered-members'
     | '/api/chat/report'
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/api/chat/logout'
     | '/api/chat/members'
     | '/api/chat/messages'
+    | '/api/chat/native-sso'
     | '/api/chat/registered-login'
     | '/api/chat/registered-members'
     | '/api/chat/report'
@@ -374,6 +385,7 @@ export interface FileRouteTypes {
     | '/api/chat/logout'
     | '/api/chat/members'
     | '/api/chat/messages'
+    | '/api/chat/native-sso'
     | '/api/chat/registered-login'
     | '/api/chat/registered-members'
     | '/api/chat/report'
@@ -398,6 +410,7 @@ export interface RootRouteChildren {
   ApiChatLogoutRoute: typeof ApiChatLogoutRoute
   ApiChatMembersRoute: typeof ApiChatMembersRoute
   ApiChatMessagesRoute: typeof ApiChatMessagesRoute
+  ApiChatNativeSsoRoute: typeof ApiChatNativeSsoRoute
   ApiChatRegisteredLoginRoute: typeof ApiChatRegisteredLoginRoute
   ApiChatRegisteredMembersRoute: typeof ApiChatRegisteredMembersRoute
   ApiChatReportRoute: typeof ApiChatReportRoute
@@ -546,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatMessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat/native-sso': {
+      id: '/api/chat/native-sso'
+      path: '/api/chat/native-sso'
+      fullPath: '/api/chat/native-sso'
+      preLoaderRoute: typeof ApiChatNativeSsoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat/registered-login': {
       id: '/api/chat/registered-login'
       path: '/api/chat/registered-login'
@@ -663,6 +683,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatLogoutRoute: ApiChatLogoutRoute,
   ApiChatMembersRoute: ApiChatMembersRoute,
   ApiChatMessagesRoute: ApiChatMessagesRoute,
+  ApiChatNativeSsoRoute: ApiChatNativeSsoRoute,
   ApiChatRegisteredLoginRoute: ApiChatRegisteredLoginRoute,
   ApiChatRegisteredMembersRoute: ApiChatRegisteredMembersRoute,
   ApiChatReportRoute: ApiChatReportRoute,
