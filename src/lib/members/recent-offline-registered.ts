@@ -106,6 +106,18 @@ export function selectRecentOfflineRegisteredMembers(
   return candidates.slice(0, RECENT_OFFLINE_REGISTERED_LIMIT);
 }
 
+/** Fast path: match a profile against the live room roster only. */
+export function findCodyMemberForProfile(
+  profile: DirectoryProfile,
+  roster: CodyMember[],
+): CodyMember | null {
+  const byYaarzo = roster.find((m) => m.yaarzoUserId === profile.id);
+  if (byYaarzo) return byYaarzo;
+
+  const needle = profile.username.trim().toLowerCase();
+  return roster.find((m) => m.name.trim().toLowerCase() === needle) ?? null;
+}
+
 export function directoryProfileToCodyMember(profile: DirectoryProfile): CodyMember {
   return {
     id: profile.id,

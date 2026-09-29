@@ -23,6 +23,7 @@ import { Route as AdminSystemRouteImport } from './routes/admin/system'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as ApiAuthUsernameLoginRouteImport } from './routes/api/auth/username-login'
 import { Route as ApiChatCapabilitiesRouteImport } from './routes/api/chat/capabilities'
+import { Route as ApiChatCodyUserResolveRouteImport } from './routes/api/chat/cody-user-resolve'
 import { Route as ApiChatEmoticonsRouteImport } from './routes/api/chat/emoticons'
 import { Route as ApiChatGuestLoginRouteImport } from './routes/api/chat/guest-login'
 import { Route as ApiChatLogoutRouteImport } from './routes/api/chat/logout'
@@ -109,6 +110,11 @@ const ApiAuthUsernameLoginRoute = ApiAuthUsernameLoginRouteImport.update({
 const ApiChatCapabilitiesRoute = ApiChatCapabilitiesRouteImport.update({
   id: '/api/chat/capabilities',
   path: '/api/chat/capabilities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatCodyUserResolveRoute = ApiChatCodyUserResolveRouteImport.update({
+  id: '/api/chat/cody-user-resolve',
+  path: '/api/chat/cody-user-resolve',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatEmoticonsRoute = ApiChatEmoticonsRouteImport.update({
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
+  '/api/chat/cody-user-resolve': typeof ApiChatCodyUserResolveRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
+  '/api/chat/cody-user-resolve': typeof ApiChatCodyUserResolveRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
@@ -280,6 +288,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
+  '/api/chat/cody-user-resolve': typeof ApiChatCodyUserResolveRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
@@ -315,6 +324,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
+    | '/api/chat/cody-user-resolve'
     | '/api/chat/emoticons'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
+    | '/api/chat/cody-user-resolve'
     | '/api/chat/emoticons'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
@@ -380,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
+    | '/api/chat/cody-user-resolve'
     | '/api/chat/emoticons'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
@@ -405,6 +417,7 @@ export interface RootRouteChildren {
   ChatroomRoute: typeof ChatroomRoute
   ApiAuthUsernameLoginRoute: typeof ApiAuthUsernameLoginRoute
   ApiChatCapabilitiesRoute: typeof ApiChatCapabilitiesRoute
+  ApiChatCodyUserResolveRoute: typeof ApiChatCodyUserResolveRoute
   ApiChatEmoticonsRoute: typeof ApiChatEmoticonsRoute
   ApiChatGuestLoginRoute: typeof ApiChatGuestLoginRoute
   ApiChatLogoutRoute: typeof ApiChatLogoutRoute
@@ -522,6 +535,13 @@ declare module '@tanstack/react-router' {
       path: '/api/chat/capabilities'
       fullPath: '/api/chat/capabilities'
       preLoaderRoute: typeof ApiChatCapabilitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/cody-user-resolve': {
+      id: '/api/chat/cody-user-resolve'
+      path: '/api/chat/cody-user-resolve'
+      fullPath: '/api/chat/cody-user-resolve'
+      preLoaderRoute: typeof ApiChatCodyUserResolveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat/emoticons': {
@@ -678,6 +698,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatroomRoute: ChatroomRoute,
   ApiAuthUsernameLoginRoute: ApiAuthUsernameLoginRoute,
   ApiChatCapabilitiesRoute: ApiChatCapabilitiesRoute,
+  ApiChatCodyUserResolveRoute: ApiChatCodyUserResolveRoute,
   ApiChatEmoticonsRoute: ApiChatEmoticonsRoute,
   ApiChatGuestLoginRoute: ApiChatGuestLoginRoute,
   ApiChatLogoutRoute: ApiChatLogoutRoute,

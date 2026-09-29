@@ -76,8 +76,11 @@ import {
 import { resolveCodyPublicUrl } from "@/lib/chat/cody-chat-origin";
 import { ConversationNavStrip } from "@/components/chat/RecentDmStrip";
 import { FindFriendsPanel, NotificationsPanel } from "@/components/chat/social/SocialPanels";
+import { rememberCodyMembersFromRoster } from "@/lib/dm/cody-user-id-cache";
 import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
 import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
+import { resolveCodyMemberForDm } from "@/lib/dm/resolve-cody-dm-target";
+import { useCodyDmInbox } from "@/lib/dm/use-cody-dm-inbox";
 import type { CodyPrivateConversation } from "@/lib/codychat-private";
 import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import {
@@ -1117,6 +1120,8 @@ function EmptyChat({
   onRoomNavSync,
   onReturnToLiveChatroom,
   resolveProfileByUsername,
+  codyDmConversations,
+  refreshCodyDmInbox,
 }: {
   active: string;
   controls: PanelControls;
@@ -1127,6 +1132,8 @@ function EmptyChat({
   onClearPendingConversation?: () => void;
   hasCodySession: boolean;
   selfCodyUserId?: string;
+  codyDmConversations: CodyPrivateConversation[];
+  refreshCodyDmInbox: () => Promise<void>;
   onGuestLogin: () => void;
   onMembersRefresh: () => void;
   onOpenSupabaseDm: (peerSupabaseId: string, peerLabel?: string) => void;
@@ -1144,7 +1151,6 @@ function EmptyChat({
   const isDirectMessages = active === "Direct Messages";
   const isNotifications = active === "Notifications";
   const isFindFriends = active === "Find Friends";
-  const [codyDmConversations, setCodyDmConversations] = useState<CodyPrivateConversation[]>([]);
   const [dmActiveConversation, setDmActiveConversation] = useState<DirectConversation | null>(null);
   const [dismissedStripKeys, setDismissedStripKeys] = useState<Set<string>>(() => new Set());
   const [activeMessageActionsId, setActiveMessageActionsId] = useState<string | null>(null);
@@ -1165,21 +1171,6 @@ function EmptyChat({
       .then((json: CodyChatCapabilities) => setCapabilities(json))
       .catch(() => setCapabilities(null));
   }, [guestName, isChat]);
-
-  const loadCodyDmInbox = useCallback(async () => {
-    if (!hasCodySession) return;
-    const res = await fetch("/api/chat/private/conversations", { cache: "no-store" });
-    if (!res.ok) return;
-    const json = (await res.json()) as { conversations?: CodyPrivateConversation[] };
-    setCodyDmConversations(json.conversations ?? []);
-  }, [hasCodySession]);
-
-  useEffect(() => {
-    void loadCodyDmInbox();
-    if (!hasCodySession) return;
-    const interval = window.setInterval(() => void loadCodyDmInbox(), 15000);
-    return () => window.clearInterval(interval);
-  }, [hasCodySession, loadCodyDmInbox]);
 
   const recentDmStripItems = useMemo(
     () => buildRecentDmStripItems(registeredDm.conversations, codyDmConversations, profiles),
@@ -1770,6 +1761,7 @@ function EmptyChat({
             hasCodySession={hasCodySession}
             profiles={profiles}
             activeConversation={dmActiveConversation}
+            onPmSent={refreshCodyDmInbox}
           />
         ) : isNotifications && registeredUserId ? (
           <NotificationsPanel profiles={profiles} />
@@ -2055,8 +2047,13 @@ export function YaarzoChat() {
   const [registeredDialogOpen, setRegisteredDialogOpen] = useState(false);
   const [members, setMembers] = useState<CodyMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [codyDmUnread, setCodyDmUnread] = useState(0);
   const [theme, setTheme] = useState<YaarzoTheme>("glass");
+  const hasCodySession = !!guestName;
+  const {
+    conversations: codyDmConversations,
+    totalUnread: codyDmUnread,
+    refreshInbox: refreshCodyDmInbox,
+  } = useCodyDmInbox(hasCodySession);
   const {
     appearancePreference,
     resolvedAppearance,
@@ -2109,7 +2106,10 @@ export function YaarzoChat() {
         members?: CodyMember[];
         self?: { codyUserId?: string };
       };
-      if (response.ok && Array.isArray(result.members)) setMembers(result.members);
+      if (response.ok && Array.isArray(result.members)) {
+        setMembers(result.members);
+        rememberCodyMembersFromRoster(result.members);
+      }
       if (response.ok && result.self?.codyUserId) setSelfCodyUserId(result.self.codyUserId);
     } finally {
       setMembersLoading(false);
@@ -2180,23 +2180,6 @@ export function YaarzoChat() {
     return () => window.clearInterval(interval);
   }, [guestName, loadMembers]);
 
-  useEffect(() => {
-    if (!guestName) {
-      setCodyDmUnread(0);
-      return;
-    }
-    const refreshCodyDmUnread = async () => {
-      const res = await fetch("/api/chat/private/conversations", { cache: "no-store" });
-      if (!res.ok) return;
-      const json = (await res.json()) as { conversations?: CodyPrivateConversation[] };
-      const unread = (json.conversations ?? []).reduce((sum, row) => sum + row.unread, 0);
-      setCodyDmUnread(unread);
-    };
-    void refreshCodyDmUnread();
-    const interval = window.setInterval(() => void refreshCodyDmUnread(), 15000);
-    return () => window.clearInterval(interval);
-  }, [guestName]);
-
   const logout = async () => {
     await fetch("/api/chat/logout", { method: "POST" }).catch(() => undefined);
 
@@ -2245,15 +2228,21 @@ export function YaarzoChat() {
     openConversation(route);
   };
 
-  const openSupabaseDmFromFriend = (peerSupabaseId: string, peerLabel?: string) => {
-    openConversation({
-      backend: "supabase",
-      peerSupabaseId,
-      ...(peerLabel ? { peerLabel } : {}),
-    });
+  const openCodyDmFromProfile = async (
+    profile: import("@/lib/profiles/use-profiles-directory").DirectoryProfile,
+  ) => {
+    const rosterMember = await resolveCodyMemberForDm(profile, members);
+    if (!rosterMember) return;
+    const route = resolveDmRoute({ supabaseUserId: user?.id }, rosterMember);
+    if (route) openConversation(route);
   };
 
-  const hasCodySession = !!guestName;
+  const openCodyDmFromFriend = (peerSupabaseId: string, _peerLabel?: string) => {
+    const profile = memberProfiles[peerSupabaseId];
+    if (!profile) return;
+    void openCodyDmFromProfile(profile);
+  };
+
   const totalDmUnread = registeredDm.totalUnread + codyDmUnread;
 
   const toggleNav = () => {
@@ -2396,7 +2385,9 @@ export function YaarzoChat() {
               void loadMembers();
               void loadRegisteredDirectory();
             }}
-            onOpenSupabaseDm={openSupabaseDmFromFriend}
+            onOpenSupabaseDm={openCodyDmFromFriend}
+            codyDmConversations={codyDmConversations}
+            refreshCodyDmInbox={refreshCodyDmInbox}
             onOpenConversation={openConversation}
             onRoomNavSync={setChatRoomNav}
             onReturnToLiveChatroom={() => setActive("Chatrooms")}

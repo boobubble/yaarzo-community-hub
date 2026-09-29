@@ -21,12 +21,14 @@ export function DirectMessagesWorkspace({
   hasCodySession,
   profiles,
   activeConversation,
+  onPmSent,
 }: {
   registeredUserId?: string;
   guestName?: string;
   hasCodySession: boolean;
   profiles: Record<string, DirectoryProfile>;
   activeConversation: DirectConversation | null;
+  onPmSent?: () => void | Promise<void>;
 }) {
   const registered = useRegisteredDmContext();
   const { openConversation: openRegisteredConversation } = registered;
@@ -185,6 +187,7 @@ export function DirectMessagesWorkspace({
         return [...map.values()];
       });
     }
+    void onPmSent?.();
     scheduleScrollToBottom("auto");
     return true;
   };
