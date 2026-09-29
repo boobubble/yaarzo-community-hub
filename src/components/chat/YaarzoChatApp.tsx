@@ -76,6 +76,10 @@ import {
 import { resolveCodyPublicUrl } from "@/lib/chat/cody-chat-origin";
 import { ConversationNavStrip } from "@/components/chat/RecentDmStrip";
 import { FindFriendsPanel, NotificationsPanel } from "@/components/chat/social/SocialPanels";
+import {
+  CodyChatRelationshipsProvider,
+  useCodyChatRelationships,
+} from "@/lib/chat/cody-chat-relationships-provider";
 import { rememberCodyMembersFromRoster } from "@/lib/dm/cody-user-id-cache";
 import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
 import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
@@ -933,6 +937,7 @@ function ProfilePanel({
   onGuestLogin: () => void;
   onMessageMember: (member: CodyMember) => void;
 }) {
+  const cody = useCodyChatRelationships();
   const member = target.kind === "member" ? target.member : undefined;
   const supabaseProfile = member?.yaarzoUserId
     ? resolveProfileByUsername(member.name)
@@ -982,6 +987,61 @@ function ProfilePanel({
           >
             Message
           </Button>
+        ) : null}
+        {member && cody.available ? (
+          <div className="mt-2 flex w-full flex-col gap-1.5">
+            {(() => {
+              const relation = cody.getRelationForCodyUser(member.id);
+              const ignored = cody.ignoredCodyUserIds.has(member.id);
+              if (ignored) {
+                return (
+                  <Button
+                    variant="outline"
+                    className="h-8 w-full text-[10px]"
+                    onClick={() => void cody.unignoreCodyUser(member.id)}
+                  >
+                    Unignore
+                  </Button>
+                );
+              }
+              return (
+                <>
+                  {relation === "none" ? (
+                    <Button
+                      className="accent-button h-8 w-full text-[10px]"
+                      onClick={() => void cody.sendToCodyUser(member.id)}
+                    >
+                      Add friend
+                    </Button>
+                  ) : null}
+                  {relation === "pending_in" ? (
+                    <Button
+                      className="accent-button h-8 w-full text-[10px]"
+                      onClick={() => void cody.acceptCodyUser(member.id)}
+                    >
+                      Accept friend request
+                    </Button>
+                  ) : null}
+                  {relation === "friends" ? (
+                    <Button
+                      variant="outline"
+                      className="h-8 w-full text-[10px]"
+                      onClick={() => void cody.unfriendCodyUser(member.id)}
+                    >
+                      Unfriend
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    className="h-8 w-full text-[10px]"
+                    onClick={() => void cody.ignoreCodyUser(member.id)}
+                  >
+                    Ignore
+                  </Button>
+                </>
+              );
+            })()}
+          </div>
         ) : null}
         {member ? null : guestName ? (
           <p className="mt-4 rounded-md border border-dashed border-border px-3 py-2 text-[9px] leading-4 text-muted-foreground">
@@ -2343,6 +2403,7 @@ export function YaarzoChat() {
   };
 
   return (
+    <CodyChatRelationshipsProvider chatSessionActive={hasCodySession} yaarzoUserId={user?.id}>
     <div className={`${resolvedAppearance} theme-${theme} h-dvh overflow-hidden bg-background text-foreground transition-colors duration-200`}>
       <div
         className={`yaarzo-app-shell h-full min-h-0 overflow-hidden ${
@@ -2467,6 +2528,7 @@ export function YaarzoChat() {
       <RegisteredAuthDialog open={registeredDialogOpen} onOpenChange={setRegisteredDialogOpen} />
       <GuestLoginDialog open={guestDialogOpen} onOpenChange={setGuestDialogOpen} onAuthenticated={setGuestName} />
     </div>
+    </CodyChatRelationshipsProvider>
   );
 }
 

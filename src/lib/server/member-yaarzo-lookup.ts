@@ -80,6 +80,23 @@ async function loadUsernameToIdMap(): Promise<Map<string, string>> {
  * Bridge-linked Cody users use their Supabase profile username as the Cody nickname.
  * Map roster names to Supabase UUIDs server-side (not display-name guessing).
  */
+export async function resolveUsernameByYaarzoId(yaarzoUserId: string): Promise<string | null> {
+  const id = yaarzoUserId.trim();
+  if (!id) return null;
+
+  const serviceKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const url = process.env["VITE_SUPABASE_URL"];
+  if (!serviceKey || !url) return null;
+
+  const admin = createClient(url, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data, error } = await admin.from("profiles_directory").select("username").eq("id", id).maybeSingle();
+  if (error || !data?.username) return null;
+  return String(data.username);
+}
+
 export async function enrichMembersWithYaarzoIds(members: CodyMember[]): Promise<CodyMember[]> {
   const map = await loadUsernameToIdMap();
   if (!map.size) return members.map((m) => ({ ...m, yaarzoUserId: null }));

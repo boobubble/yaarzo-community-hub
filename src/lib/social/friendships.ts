@@ -9,6 +9,9 @@ export type FriendshipRow = {
   status: FriendshipStatus;
   created_at: string;
   updated_at: string;
+  /** CodyChat peer when the row is backed by native Cody friends. */
+  peerCodyUserId?: string;
+  peerUsername?: string;
 };
 
 export type FriendshipRelation =
@@ -29,7 +32,9 @@ export type FriendshipAction =
   | "cancelled"
   | "unfriended"
   | "blocked"
-  | "unblocked";
+  | "unblocked"
+  | "ignored"
+  | "unignored";
 
 export type SocialMutationResult =
   | { ok: true; action: FriendshipAction }
