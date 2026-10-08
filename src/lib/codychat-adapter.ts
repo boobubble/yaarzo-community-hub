@@ -1,4 +1,12 @@
-const CODYCHAT_ORIGIN = "https://chat.yaarzo.com/chatroom";
+import {
+  CODYCHAT_BASE_URL,
+  CODYCHAT_PUBLIC_ORIGIN,
+  resolveCodyEndpointUrl,
+  resolveCodyPublicUrl,
+} from "./chat/cody-chat-origin.ts";
+
+export { CODYCHAT_BASE_URL };
+export const CODYCHAT_ORIGIN = CODYCHAT_PUBLIC_ORIGIN;
 const SESSION_COOKIE = "yaarzo_cody_session";
 
 export type CodySession = {
@@ -131,12 +139,13 @@ export function cookieHeader(cookies: Record<string, string>) {
 }
 
 export async function codyFetch(path: string, init: RequestInit = {}) {
-  return fetch(`${CODYCHAT_ORIGIN}/${path}`, {
+  return fetch(resolveCodyEndpointUrl(path), {
     ...init,
     redirect: "manual",
     headers: {
       Accept: "text/html,application/json;q=0.9,*/*;q=0.8",
       "User-Agent": "Yaarzo-CodyChat-Adapter/1.0",
+      Referer: CODYCHAT_BASE_URL,
       ...init.headers,
     },
   });
@@ -184,7 +193,7 @@ export function parseMembers(html: string): CodyMember[] {
     seen.add(id);
     const avatarValue = attrs["data-av"];
     const avatar = avatarValue
-      ? new URL(avatarValue, `${CODYCHAT_ORIGIN}/`).toString()
+      ? resolveCodyPublicUrl(avatarValue)
       : undefined;
     const rank = Number.parseInt(attrs["data-rank"] ?? "", 10);
     const level = Number.parseInt(attrs["data-level"] ?? "", 10);
@@ -216,7 +225,7 @@ export function parseRooms(html: string): CodyRoom[] {
     const onlineText = block.match(/class=(["'])[^"']*\broom_ccount\b[^"']*\1[^>]*>([\s\S]*?)<\/div>/iu)?.[2]?.replace(/<[^>]*>/gu, "").trim() ?? "0";
     const online = Number.parseInt(onlineText, 10);
     const iconValue = block.match(/class=(["'])[^"']*\broom_cicon\b[^"']*\1[^>]*(?:data-src|src)=(["'])(.*?)\2/iu)?.[3];
-    const icon = iconValue ? new URL(decodeHtml(iconValue), `${CODYCHAT_ORIGIN}/`).toString() : undefined;
+    const icon = iconValue ? resolveCodyPublicUrl(decodeHtml(iconValue)) : undefined;
     return [{ id, name, description, passwordRequired, access, online: Number.isFinite(online) ? online : 0, ...(icon ? { icon } : {}) }];
   });
 }
@@ -226,7 +235,7 @@ export function codyAjaxHeaders(session: CodySession) {
     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
     Cookie: cookieHeader(session.cookies),
     Origin: CODYCHAT_ORIGIN,
-    Referer: `${CODYCHAT_ORIGIN}/`,
+    Referer: CODYCHAT_BASE_URL,
     "X-Requested-With": "XMLHttpRequest",
   };
 }

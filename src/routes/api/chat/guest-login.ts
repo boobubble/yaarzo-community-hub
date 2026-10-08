@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
+  CODYCHAT_BASE_URL,
+  CODYCHAT_ORIGIN,
   codyFetch,
   cookieHeader,
   extractToken,
@@ -52,8 +54,8 @@ export const Route = createFileRoute("/api/chat/guest-login")({
             headers: {
               "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
               Cookie: cookieHeader(cookies),
-              Origin: "https://chat.yaarzo.com",
-              Referer: "https://chat.yaarzo.com/",
+              Origin: CODYCHAT_ORIGIN,
+              Referer: CODYCHAT_BASE_URL,
               "X-Requested-With": "XMLHttpRequest",
             },
             body,

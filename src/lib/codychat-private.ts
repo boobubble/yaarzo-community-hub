@@ -1,3 +1,5 @@
+import { resolveCodyPublicUrl } from "./chat/cody-chat-origin.ts";
+
 function decodeHtml(value: string) {
   return value
     .replace(/&amp;/giu, "&")
@@ -39,7 +41,7 @@ export function parsePrivateNotifyHtml(html: string): CodyPrivateConversation[] 
     items.push({
       userId: data,
       userName: decodeHtml(value ?? "Guest"),
-      ...(av ? { avatar: decodeHtml(av) } : {}),
+      ...(av ? { avatar: resolveCodyPublicUrl(decodeHtml(av)) } : {}),
       unread: unreadMatch ? Number.parseInt(unreadMatch[2] ?? "0", 10) : 0,
     });
   }

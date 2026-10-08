@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
+  CODYCHAT_BASE_URL,
+  CODYCHAT_ORIGIN,
   clearSessionCookie,
   codyFetch,
   cookieHeader,
@@ -25,8 +27,8 @@ export const Route = createFileRoute("/api/chat/logout")({
               headers: {
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
                 Cookie: cookieHeader(session.cookies),
-                Origin: "https://chat.yaarzo.com",
-                Referer: "https://chat.yaarzo.com/",
+                Origin: CODYCHAT_ORIGIN,
+                Referer: CODYCHAT_BASE_URL,
                 "X-Requested-With": "XMLHttpRequest",
               },
               body: new URLSearchParams({ logout_from_system: "1", token: session.token }),
