@@ -10,58 +10,54 @@ export type HybridOnlineMember = {
   isRegistered: boolean;
 };
 
+/** Yaarzo profile IDs currently on the CodyChat live roster. */
+export function onlineYaarzoIdsFromRoster(codyMembers: CodyMember[]): Set<string> {
+  const ids = new Set<string>();
+  for (const member of codyMembers) {
+    if (member.yaarzoUserId) ids.add(member.yaarzoUserId);
+  }
+  return ids;
+}
+
 /**
- * Registered presence comes from Supabase Realtime Presence.
- * Guest presence comes from the CodyChat live roster.
+ * Online members come from the CodyChat live roster, enriched with Supabase profile data when mapped.
  */
 export function buildHybridOnlineMembers(
   codyMembers: CodyMember[],
   profiles: Record<string, DirectoryProfile>,
-  registeredOnlineIds: Set<string>,
 ): HybridOnlineMember[] {
   const rows: HybridOnlineMember[] = [];
 
-  for (const supabaseId of registeredOnlineIds) {
-    const profile = profiles[supabaseId];
-    if (!profile) continue;
-
-    rows.push({
-      key: `registered:${supabaseId}`,
-      codyMember: {
-        id: profile.id,
-        name: profile.username,
-        yaarzoUserId: profile.id,
-        ...(profile.avatar_url ? { avatar: profile.avatar_url } : {}),
-        ...(profile.level !== undefined ? { level: profile.level } : {}),
-        ...(profile.gender ? { gender: profile.gender } : {}),
-      },
-      displayName: profile.display_name || profile.username,
-      subtitle:
-        [profile.gender, `Level ${profile.level}`, "Registered"]
-          .filter(Boolean)
-          .join(" · ") || "Online · Registered",
-      avatarUrl: profile.avatar_url ?? undefined,
-      isRegistered: true,
-    });
-  }
-
   for (const codyMember of codyMembers) {
-    if (codyMember.yaarzoUserId) continue;
+    const yaarzoId = codyMember.yaarzoUserId ?? null;
+    const profile = yaarzoId ? profiles[yaarzoId] : undefined;
+    const isRegistered = Boolean(yaarzoId);
+
+    const displayName = profile
+      ? profile.display_name || profile.username
+      : codyMember.name;
+    const avatarUrl = profile?.avatar_url ?? codyMember.avatar;
+    const level = profile?.level ?? codyMember.level;
+    const gender = profile?.gender ?? codyMember.gender;
 
     rows.push({
-      key: `guest:${codyMember.id}`,
-      codyMember,
-      displayName: codyMember.name,
-      subtitle:
-        [
-          codyMember.gender,
-          codyMember.level !== undefined ? `Level ${codyMember.level}` : undefined,
-          "Guest",
-        ]
-          .filter(Boolean)
-          .join(" · ") || "Guest",
-      avatarUrl: codyMember.avatar,
-      isRegistered: false,
+      key: `cody:${codyMember.id}`,
+      codyMember: {
+        ...codyMember,
+        ...(avatarUrl ? { avatar: avatarUrl } : {}),
+        ...(level !== undefined ? { level } : {}),
+        ...(gender ? { gender } : {}),
+      },
+      displayName,
+      subtitle: isRegistered
+        ? [gender, level !== undefined ? `Level ${level}` : undefined, "Registered"]
+            .filter(Boolean)
+            .join(" · ") || "Online · Registered"
+        : [gender, level !== undefined ? `Level ${level}` : undefined, "Guest"]
+            .filter(Boolean)
+            .join(" · ") || "Guest",
+      ...(avatarUrl ? { avatarUrl } : {}),
+      isRegistered,
     });
   }
 
@@ -75,18 +71,18 @@ export const RECENT_OFFLINE_REGISTERED_LIMIT = 30;
 
 export function selectRecentOfflineRegisteredMembers(
   profiles: Record<string, DirectoryProfile>,
-  registeredOnlineIds: Set<string>,
+  onlineYaarzoIds: Set<string>,
   viewerSupabaseId?: string,
 ): DirectoryProfile[] {
   const candidates = Object.values(profiles).filter((profile) => {
     if (
       viewerSupabaseId &&
       profile.id === viewerSupabaseId &&
-      registeredOnlineIds.has(viewerSupabaseId)
+      onlineYaarzoIds.has(viewerSupabaseId)
     ) {
       return false;
     }
-    if (registeredOnlineIds.has(profile.id)) return false;
+    if (onlineYaarzoIds.has(profile.id)) return false;
     return true;
   });
 

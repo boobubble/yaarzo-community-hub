@@ -39,8 +39,8 @@ export const Route = createFileRoute("/api/chat/friends")({
 
         let body: {
           action?: CodyFriendAction;
-          codyUserId?: string;
-          yaarzoUserId?: string;
+          codyUserId?: string | undefined;
+          yaarzoUserId?: string | undefined;
         };
         try {
           body = (await request.json()) as typeof body;

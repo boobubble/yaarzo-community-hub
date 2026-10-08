@@ -56,8 +56,8 @@ export function SectionTitle({
 }: {
   icon: string;
   title: string;
-  suffix?: string;
-  href?: string;
+  suffix?: string | undefined;
+  href?: string | undefined;
 }) {
   return (
     <div className="flex items-center gap-2">

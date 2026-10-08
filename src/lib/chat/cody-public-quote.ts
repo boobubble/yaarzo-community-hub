@@ -50,17 +50,17 @@ export function quoteExcerpt(text: string, max = QUOTE_EXCERPT_MAX) {
 export function parseCodyQuoteFromLog(
   log: Record<string, unknown>,
 ): CodyPublicQuote | undefined {
-  const fromPayload = parseCodyQuotePayload(log.quote);
+  const fromPayload = parseCodyQuotePayload(log["quote"]);
   if (fromPayload?.content || (fromPayload?.id && isCodyLogId(fromPayload.id))) {
     return fromPayload;
   }
 
-  const qpost = log.qpost ?? log.qid;
+  const qpost = log["qpost"] ?? log["qid"];
   const postId = Number(qpost);
   if (Number.isFinite(postId) && postId > 0) {
-    const author = codyHtmlToPlainText(log.qname ?? "");
+    const author = codyHtmlToPlainText(log["qname"] ?? "");
     const content = codyHtmlToPlainText(
-      log.qcontent ?? log.qmess ?? "",
+      log["qcontent"] ?? log["qmess"] ?? "",
     );
     if (author || content) {
       return {
@@ -96,15 +96,15 @@ export function parseCodyQuotePayload(raw: unknown): CodyPublicQuote | undefined
   }
 
   const author =
-    codyHtmlToPlainText(quote.qname ?? quote.quser ?? quote.name ?? "") ||
+    codyHtmlToPlainText(quote["qname"] ?? quote["quser"] ?? quote["name"] ?? "") ||
     "User";
   const content = codyHtmlToPlainText(
-    quote.qcontent ?? quote.qmess ?? quote.content ?? quote.message ?? "",
+    quote["qcontent"] ?? quote["qmess"] ?? quote["content"] ?? quote["message"] ?? "",
   );
-  const id = String(quote.qid ?? quote.qpost ?? quote.id ?? "").trim();
+  const id = String(quote["qid"] ?? quote["qpost"] ?? quote["id"] ?? "").trim();
   const avatarUrl =
-    typeof quote.qtumb === "string" && quote.qtumb.trim()
-      ? quote.qtumb.trim()
+    typeof quote["qtumb"] === "string" && quote["qtumb"].trim()
+      ? quote["qtumb"].trim()
       : undefined;
 
   if (!content && !id) return undefined;
@@ -209,24 +209,31 @@ export function mergePublicMessages(
     if (!next && prev) return prev;
     if (!next) return undefined;
     if (!prev) return next;
+    const avatarUrl = next.avatarUrl ?? prev.avatarUrl;
     return {
       id: next.id || prev.id,
       author: next.author || prev.author,
       content: next.content || prev.content,
-      avatarUrl: next.avatarUrl ?? prev.avatarUrl,
+      ...(avatarUrl !== undefined ? { avatarUrl } : {}),
     };
   })();
+  const parts = incoming.parts?.length ? incoming.parts : previous?.parts;
+  const authorUserId = incoming.authorUserId ?? previous?.authorUserId;
+  const system = incoming.system ?? previous?.system;
+  const systemLogType = incoming.systemLogType ?? previous?.systemLogType;
+  const systemSubjectName = incoming.systemSubjectName ?? previous?.systemSubjectName;
+  const systemAvatarUrl = incoming.systemAvatarUrl ?? previous?.systemAvatarUrl;
 
   return {
     ...incoming,
     ...(mergedQuote ? { quote: mergedQuote } : {}),
     content: incoming.content || previous?.content || "",
-    parts: incoming.parts?.length ? incoming.parts : previous?.parts,
-    authorUserId: incoming.authorUserId ?? previous?.authorUserId,
-    system: incoming.system ?? previous?.system,
-    systemLogType: incoming.systemLogType ?? previous?.systemLogType,
-    systemSubjectName: incoming.systemSubjectName ?? previous?.systemSubjectName,
-    systemAvatarUrl: incoming.systemAvatarUrl ?? previous?.systemAvatarUrl,
+    ...(parts !== undefined ? { parts } : {}),
+    ...(authorUserId !== undefined ? { authorUserId } : {}),
+    ...(system !== undefined ? { system } : {}),
+    ...(systemLogType !== undefined ? { systemLogType } : {}),
+    ...(systemSubjectName !== undefined ? { systemSubjectName } : {}),
+    ...(systemAvatarUrl !== undefined ? { systemAvatarUrl } : {}),
   };
 }
 

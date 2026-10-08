@@ -56,6 +56,7 @@ import {
   type DirectConversation,
 } from "@/components/chat/dm/DirectMessagesWorkspace";
 import { conversationKey, resolveDmRoute } from "@/lib/dm/direct-conversation";
+import { resolveCodyMemberForDm } from "@/lib/dm/resolve-cody-dm-target";
 import { ChatReportDialog } from "@/components/chat/ChatReportDialog";
 import { PublicChatQuotedReply } from "@/components/chat/PublicChatQuotedReply";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
@@ -83,20 +84,19 @@ import {
 import { rememberCodyMembersFromRoster } from "@/lib/dm/cody-user-id-cache";
 import { buildRecentDmStripItems } from "@/lib/dm/recent-dm-strip";
 import type { RecentDmStripItem } from "@/lib/dm/recent-dm-strip";
-import { resolveCodyMemberForDm } from "@/lib/dm/resolve-cody-dm-target";
+
 import { useCodyDmInbox } from "@/lib/dm/use-cody-dm-inbox";
 import type { CodyPrivateConversation } from "@/lib/codychat-private";
-import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import {
   buildHybridOnlineMembers,
   directoryProfileToCodyMember,
+  onlineYaarzoIdsFromRoster,
   selectRecentOfflineRegisteredMembers,
 } from "@/lib/members/recent-offline-registered";
 import { timeAgo } from "@/lib/notifications/notifications-provider";
 import type { CodyMember } from "@/lib/codychat-adapter";
 import { mergeMediaConfig } from "@/lib/media/media-providers-config";
 import { useProfilesDirectory } from "@/lib/profiles/use-profiles-directory";
-import { useRegisteredPresence } from "@/lib/members/use-registered-presence";
 import { useNotifications } from "@/lib/notifications/notifications-provider";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/auth-context";
@@ -158,7 +158,7 @@ function Brand() {
       </div>
       <div className="min-w-0">
         <div className="font-display text-[19px] font-extrabold italic leading-none text-foreground">Yaarzo</div>
-        <div className="mt-1 truncate text-[8px] font-bold uppercase text-muted-foreground">Chat Ã‚Â· Connect Ã‚Â· Belong</div>
+        <div className="mt-1 truncate text-[8px] font-bold uppercase text-muted-foreground">Chat ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Connect ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Belong</div>
       </div>
       <MoreHorizontal className="ml-auto size-4 text-muted-foreground" aria-hidden="true" />
     </div>
@@ -167,10 +167,10 @@ function Brand() {
 
 type ChatroomNavProps = {
   rooms: CodyRoom[];
-  activeRoomId?: number;
+  activeRoomId?: number | undefined;
   canLoad: boolean;
   onJoinRoom: (room: CodyRoom) => void;
-  onCloseMobileDrawer?: () => void;
+  onCloseMobileDrawer?: (() => void) | undefined;
 };
 
 function Navigation({
@@ -181,8 +181,8 @@ function Navigation({
 }: {
   active: string;
   onSelect: (label: string) => void;
-  badges?: Partial<Record<string, number>>;
-  chatrooms?: ChatroomNavProps;
+  badges?: Partial<Record<string, number>> | undefined;
+  chatrooms?: ChatroomNavProps | undefined;
 }) {
   const chatActive = active === "Chatrooms" || active === "Home";
   const [chatroomsExpanded, setChatroomsExpanded] = useState(false);
@@ -259,7 +259,7 @@ function Navigation({
                   );
                 })
               ) : (
-                <p className="px-2 py-1 text-[9px] text-muted-foreground">Loading roomsâ€¦</p>
+                <p className="px-2 py-1 text-[9px] text-muted-foreground">Loading roomsÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</p>
               )}
             </div>
           ) : (
@@ -305,7 +305,7 @@ function LeftSidebar({
   active: string;
   onSelect: (label: string) => void;
   navBadges?: Partial<Record<string, number>>;
-  chatrooms?: ChatroomNavProps;
+  chatrooms?: ChatroomNavProps | undefined;
   guestName: string | undefined;
   registered: boolean;
   registeredLabel: string;
@@ -337,7 +337,7 @@ function LeftSidebar({
       <div className="px-2.5 pt-2.5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input aria-label="Search Yaarzo" placeholder="Search rooms, users, postsÃ¢â‚¬Â¦" className="h-8 border-sidebar-border bg-background/55 pl-8 text-[10px]" />
+          <Input aria-label="Search Yaarzo" placeholder="Search rooms, users, postsÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" className="h-8 border-sidebar-border bg-background/55 pl-8 text-[10px]" />
         </div>
       </div>
       <Navigation
@@ -427,33 +427,35 @@ function MembersPanel({
   members,
   loading,
   profiles,
-  registeredOnlineIds,
   viewerSupabaseId,
   selfCodyUserId,
   onClose,
   onSelectMember,
   onSelectRegisteredProfile,
   onMessageMember,
+  onMessageProfile,
 }: {
   members: CodyMember[];
   loading: boolean;
   profiles: Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>;
-  registeredOnlineIds: Set<string>;
-  viewerSupabaseId?: string;
-  selfCodyUserId?: string;
+  viewerSupabaseId?: string | undefined;
+  selfCodyUserId?: string | undefined;
   onClose: () => void;
   onSelectMember: (member: CodyMember) => void;
   onSelectRegisteredProfile: (profile: import("@/lib/profiles/use-profiles-directory").DirectoryProfile) => void;
   onMessageMember: (member: CodyMember) => void;
+  onMessageProfile: (profile: import("@/lib/profiles/use-profiles-directory").DirectoryProfile) => void;
 }) {
+  const onlineYaarzoIds = useMemo(() => onlineYaarzoIdsFromRoster(members), [members]);
+
   const onlineRows = useMemo(
-    () => buildHybridOnlineMembers(members, profiles, registeredOnlineIds),
-    [members, profiles, registeredOnlineIds],
+    () => buildHybridOnlineMembers(members, profiles),
+    [members, profiles],
   );
 
   const recentOffline = useMemo(
-    () => selectRecentOfflineRegisteredMembers(profiles, registeredOnlineIds, viewerSupabaseId),
-    [profiles, registeredOnlineIds, viewerSupabaseId],
+    () => selectRecentOfflineRegisteredMembers(profiles, onlineYaarzoIds, viewerSupabaseId),
+    [profiles, onlineYaarzoIds, viewerSupabaseId],
   );
 
   const renderOnlineRow = (row: ReturnType<typeof buildHybridOnlineMembers>[number]) => {
@@ -578,7 +580,7 @@ function MembersPanel({
                         className="size-7 shrink-0 text-muted-foreground opacity-100 sm:opacity-80 sm:group-hover:opacity-100"
                         aria-label={`Message ${profile.username}`}
                         title="Message"
-                        onClick={() => onMessageMember(directoryProfileToCodyMember(profile))}
+                        onClick={() => onMessageProfile(profile)}
                       >
                         <Mail className="size-3.5" />
                       </Button>
@@ -908,7 +910,7 @@ function GuestLoginDialog({ open, onOpenChange, onAuthenticated }: { open: boole
           </div>
           {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
           <Button type="submit" className="accent-button w-full" disabled={submitting || !gender}>
-            {submitting ? "ConnectingÃ¢â‚¬Â¦" : "Continue as Guest"}
+            {submitting ? "ConnectingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "Continue as Guest"}
           </Button>
         </form>
       </DialogContent>
@@ -926,16 +928,18 @@ function ProfilePanel({
   onClose,
   onGuestLogin,
   onMessageMember,
+  onMessageProfile,
   selfCodyUserId,
 }: {
   target: ProfileTarget;
   guestName: string | undefined;
-  registeredUserId?: string;
-  selfCodyUserId?: string;
-  resolveProfileByUsername: (username: string) => ReturnType<typeof useProfilesDirectory>["resolveByUsername"];
+  registeredUserId?: string | undefined;
+  selfCodyUserId?: string | undefined;
+  resolveProfileByUsername: ReturnType<typeof useProfilesDirectory>["resolveByUsername"];
   onClose: () => void;
   onGuestLogin: () => void;
   onMessageMember: (member: CodyMember) => void;
+  onMessageProfile?: (profile: import("@/lib/profiles/use-profiles-directory").DirectoryProfile) => void;
 }) {
   const cody = useCodyChatRelationships();
   const member = target.kind === "member" ? target.member : undefined;
@@ -946,9 +950,9 @@ function ProfilePanel({
       : undefined;
   const title = member ? member.name : guestName ?? "My profile";
   const subtitle = member
-    ? [member.gender, member.country].filter(Boolean).join(" Ã‚Â· ") || "Online in this room"
+    ? [member.gender, member.country].filter(Boolean).join(" ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· ") || "Online in this room"
     : guestName
-      ? "Guest Ã‚Â· CodyChat session"
+      ? "Guest ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· CodyChat session"
       : "Not signed in";
   const canMessage =
     !!member &&
@@ -974,14 +978,18 @@ function ProfilePanel({
         <p className="mt-1 text-[9px] text-muted-foreground">{subtitle}</p>
         {supabaseProfile ? (
           <p className="mt-1 text-[9px] text-muted-foreground">
-            @{supabaseProfile.username} Â· Level {supabaseProfile.level}
+            @{supabaseProfile.username} Ãƒâ€šÃ‚Â· Level {supabaseProfile.level}
           </p>
         ) : null}
         {canMessage ? (
           <Button
             className="accent-button mt-4 h-8 w-full text-[10px]"
             onClick={() => {
-              onMessageMember(member!);
+              if (supabaseProfile && onMessageProfile) {
+                onMessageProfile(supabaseProfile);
+              } else {
+                onMessageMember(member!);
+              }
               onClose();
             }}
           >
@@ -1052,9 +1060,9 @@ function ProfilePanel({
         )}
         <div className="mt-5 grid w-full grid-cols-3 gap-1.5">
           {[
-            ["Ã¢â‚¬â€", "Posts"],
-            ["Ã¢â‚¬â€", "Friends"],
-            [member?.level !== undefined ? String(member.level) : "Ã¢â‚¬â€", "Level"],
+            ["ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â", "Posts"],
+            ["ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â", "Friends"],
+            [member?.level !== undefined ? String(member.level) : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â", "Level"],
           ].map(([value, label]) => (
             <div key={label} className="rounded-md border border-border bg-card py-2 text-center">
               <p className="text-sm font-extrabold text-foreground">{value}</p>
@@ -1140,7 +1148,7 @@ function resolveSystemChatAvatarUrl(
   return resolveCodyPublicUrl("default_system.png");
 }
 
-function ChatRowAvatar({ src, sizeClass = "size-5" }: { src?: string; sizeClass?: string }) {
+function ChatRowAvatar({ src, sizeClass = "size-5" }: { src?: string | undefined; sizeClass?: string }) {
   const [broken, setBroken] = useState(false);
   const showImage = Boolean(src) && !broken;
   if (!showImage) {
@@ -1175,7 +1183,7 @@ function EmptyChat({
   selfCodyUserId,
   onGuestLogin,
   onMembersRefresh,
-  onOpenSupabaseDm,
+  onOpenFriendDm,
   onOpenConversation,
   onRoomNavSync,
   onReturnToLiveChatroom,
@@ -1186,27 +1194,26 @@ function EmptyChat({
   active: string;
   controls: PanelControls;
   guestName: string | undefined;
-  registeredUserId?: string;
+  registeredUserId?: string | undefined;
   profiles: Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>;
   pendingConversation?: DirectConversation | null;
   onClearPendingConversation?: () => void;
   hasCodySession: boolean;
-  selfCodyUserId?: string;
+  selfCodyUserId?: string | undefined;
   codyDmConversations: CodyPrivateConversation[];
   refreshCodyDmInbox: () => Promise<void>;
   onGuestLogin: () => void;
   onMembersRefresh: () => void;
-  onOpenSupabaseDm: (peerSupabaseId: string, peerLabel?: string) => void;
+  onOpenFriendDm: (peerSupabaseId: string, peerLabel?: string) => void;
   onOpenConversation: (conversation: DirectConversation) => void;
   onRoomNavSync?: (state: {
     rooms: CodyRoom[];
-    activeRoomId?: number;
+    activeRoomId: number | undefined;
     joinRoom: (room: CodyRoom) => Promise<void>;
   }) => void;
   onReturnToLiveChatroom: () => void;
   resolveProfileByUsername: ProfileUsernameLookup;
 }) {
-  const registeredDm = useRegisteredDmContext();
   const isChat = active === "Chatrooms" || active === "Home";
   const isDirectMessages = active === "Direct Messages";
   const isNotifications = active === "Notifications";
@@ -1233,8 +1240,8 @@ function EmptyChat({
   }, [guestName, isChat]);
 
   const recentDmStripItems = useMemo(
-    () => buildRecentDmStripItems(registeredDm.conversations, codyDmConversations, profiles),
-    [registeredDm.conversations, codyDmConversations, profiles],
+    () => buildRecentDmStripItems(codyDmConversations, profiles),
+    [codyDmConversations, profiles],
   );
 
   const visibleDmStripItems = useMemo(
@@ -1829,7 +1836,7 @@ function EmptyChat({
           <FindFriendsPanel
             profiles={profiles}
             meId={registeredUserId}
-            onMessage={(peerId, label) => onOpenSupabaseDm(peerId, label)}
+            onMessage={(peerId, label) => onOpenFriendDm(peerId, label)}
           />
         ) : !isChat ? (
           <div className="m-auto max-w-xs text-center">
@@ -2015,7 +2022,7 @@ function EmptyChat({
           </div>
         ) : (
           <div className="m-auto text-center text-[11px] text-muted-foreground">
-            Connected. Waiting for live messagesâ€¦
+            Connected. Waiting for live messagesÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦
           </div>
         )}
       </main>
@@ -2050,7 +2057,7 @@ function EmptyChat({
                 : undefined
             }
             placeholder={
-              guestName ? "Write a messageâ€¦" : "Sign in or continue as guest to send"
+              guestName ? "Write a messageÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "Sign in or continue as guest to send"
             }
             onSend={(content) => sendMessage(undefined, content)}
             onUploadFile={uploadChatFile}
@@ -2071,11 +2078,9 @@ function EmptyChat({
 }
 export function YaarzoChat() {
   const { session, user, ready } = useAuth();
-  const registeredDm = useRegisteredDmContext();
   const notifications = useNotifications();
   const directory = useProfilesDirectory(true);
   const [serverProfiles, setServerProfiles] = useState<Record<string, import("@/lib/profiles/use-profiles-directory").DirectoryProfile>>({});
-  const registeredOnlineIds = useRegisteredPresence(user?.id);
   const memberProfiles = { ...directory.profiles, ...serverProfiles };
   const [pendingConversation, setPendingConversation] = useState<DirectConversation | null>(null);
   const [selfCodyUserId, setSelfCodyUserId] = useState<string>();
@@ -2265,10 +2270,11 @@ export function YaarzoChat() {
 
   const [chatRoomNav, setChatRoomNav] = useState<{
     rooms: CodyRoom[];
-    activeRoomId?: number;
+    activeRoomId: number | undefined;
     joinRoom: (room: CodyRoom) => Promise<void>;
   }>({
     rooms: [],
+    activeRoomId: undefined,
     joinRoom: async () => {},
   });
 
@@ -2303,7 +2309,7 @@ export function YaarzoChat() {
     void openCodyDmFromProfile(profile);
   };
 
-  const totalDmUnread = registeredDm.totalUnread + codyDmUnread;
+  const totalDmUnread = codyDmUnread;
 
   const toggleNav = () => {
     if (isDesktop) return setNavDesktop((v) => !v);
@@ -2436,7 +2442,6 @@ export function YaarzoChat() {
             guestName={guestName}
             registeredUserId={user?.id}
             profiles={memberProfiles}
-                registeredOnlineIds={registeredOnlineIds}
             pendingConversation={pendingConversation}
             onClearPendingConversation={() => setPendingConversation(null)}
             hasCodySession={hasCodySession}
@@ -2446,9 +2451,9 @@ export function YaarzoChat() {
               void loadMembers();
               void loadRegisteredDirectory();
             }}
-            onOpenSupabaseDm={openCodyDmFromFriend}
             codyDmConversations={codyDmConversations}
             refreshCodyDmInbox={refreshCodyDmInbox}
+            onOpenFriendDm={openCodyDmFromFriend}
             onOpenConversation={openConversation}
             onRoomNavSync={setChatRoomNav}
             onReturnToLiveChatroom={() => setActive("Chatrooms")}
@@ -2463,7 +2468,6 @@ export function YaarzoChat() {
                 members={members}
                 loading={membersLoading}
                 profiles={memberProfiles}
-                registeredOnlineIds={registeredOnlineIds}
                 viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
                 onClose={() => setMembersDesktop(false)}
@@ -2472,6 +2476,7 @@ export function YaarzoChat() {
                   openProfile({ kind: "member", member: directoryProfileToCodyMember(profile) })
                 }
                 onMessageMember={openDmFromMember}
+                onMessageProfile={(profile) => void openCodyDmFromProfile(profile)}
               />
             ) : showProfileInline && profile ? (
               <ProfilePanel
@@ -2482,6 +2487,7 @@ export function YaarzoChat() {
                 onClose={() => setProfile(null)}
                 onGuestLogin={() => setGuestDialogOpen(true)}
                 onMessageMember={openDmFromMember}
+                onMessageProfile={(profile) => void openCodyDmFromProfile(profile)}
                 selfCodyUserId={selfCodyUserId}
               />
             ) : null}
@@ -2500,7 +2506,6 @@ export function YaarzoChat() {
                 members={members}
                 loading={membersLoading}
                 profiles={memberProfiles}
-                registeredOnlineIds={registeredOnlineIds}
                 viewerSupabaseId={user?.id}
                 selfCodyUserId={selfCodyUserId}
                 onClose={closeDrawers}
@@ -2509,6 +2514,7 @@ export function YaarzoChat() {
                   openProfile({ kind: "member", member: directoryProfileToCodyMember(profile) })
                 }
                 onMessageMember={openDmFromMember}
+                onMessageProfile={(profile) => void openCodyDmFromProfile(profile)}
               />
             ) : profile ? (
               <ProfilePanel
@@ -2519,6 +2525,7 @@ export function YaarzoChat() {
                 onClose={closeDrawers}
                 onGuestLogin={() => setGuestDialogOpen(true)}
                 onMessageMember={openDmFromMember}
+                onMessageProfile={(profile) => void openCodyDmFromProfile(profile)}
                 selfCodyUserId={selfCodyUserId}
               />
             ) : null}
@@ -2531,31 +2538,3 @@ export function YaarzoChat() {
     </CodyChatRelationshipsProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

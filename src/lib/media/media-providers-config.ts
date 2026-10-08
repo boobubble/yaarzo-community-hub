@@ -49,7 +49,7 @@ export function parseYoutubeId(input: string): string | null {
     const host = u.hostname.replace(/^www\./, "");
     if (host === "youtu.be") {
       const id = u.pathname.slice(1).split("/")[0];
-      return /^[\w-]{11}$/.test(id) ? id : null;
+      return id && /^[\w-]{11}$/.test(id) ? id : null;
     }
     if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
       if (u.pathname === "/watch") {
@@ -57,7 +57,7 @@ export function parseYoutubeId(input: string): string | null {
         return id && /^[\w-]{11}$/.test(id) ? id : null;
       }
       const m = u.pathname.match(/^\/(embed|shorts|v|live)\/([\w-]{11})/);
-      if (m) return m[2];
+      if (m?.[2]) return m[2];
     }
   } catch {
     /* not a URL */
@@ -78,6 +78,7 @@ export function parseGiphyUrl(input: string): { id: string; gifUrl: string } | n
         u.pathname.match(/\/gifs\/([A-Za-z0-9]+)/);
       if (m) {
         const id = m[1];
+        if (!id) return null;
         return { id, gifUrl: `https://media.giphy.com/media/${id}/giphy.gif` };
       }
     }

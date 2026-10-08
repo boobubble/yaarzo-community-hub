@@ -7,7 +7,7 @@ import type { MediaConfig } from "@/lib/media/media-providers-config";
 
 type Props = {
   text: string;
-  parts?: CodyMessagePart[];
+  parts?: CodyMessagePart[] | undefined;
   media?: MediaConfig | null;
   className?: string;
 };

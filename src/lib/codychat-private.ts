@@ -57,11 +57,11 @@ export function normalizeCodyPrivateLogs(value: unknown, selfName?: string): Cod
   return items.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
     const log = item as Record<string, unknown>;
-    const content = stripTags(String(log.log_content ?? log.content ?? ""));
+    const content = stripTags(String(log["log_content"] ?? log["content"] ?? ""));
     if (!content) return [];
-    const userName = stripTags(String(log.user_name ?? log.username ?? "Guest"));
-    const userId = String(log.user_id ?? "");
-    const id = String(log.log_id ?? log.id ?? `${userId}-${content.slice(0, 24)}`);
+    const userName = stripTags(String(log["user_name"] ?? log["username"] ?? "Guest"));
+    const userId = String(log["user_id"] ?? "");
+    const id = String(log["log_id"] ?? log["id"] ?? `${userId}-${content.slice(0, 24)}`);
     return [{ id, userId, userName, content }];
   });
 }

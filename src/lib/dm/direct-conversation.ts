@@ -14,28 +14,17 @@ export type DirectConversation =
     };
 
 export type ViewerIdentity = {
-  supabaseUserId?: string | null;
+  supabaseUserId?: string | null | undefined;
 };
 
 export type MemberIdentity = Pick<CodyMember, "id" | "name" | "avatar" | "yaarzoUserId">;
 
-/** Both participants must be registered Supabase users (bridge-linked) for Supabase DM. */
+/** CodyChat is the sole DM backend; target must be a CodyChat roster member. */
 export function resolveDmRoute(
-  viewer: ViewerIdentity,
+  _viewer: ViewerIdentity,
   target: MemberIdentity,
 ): DirectConversation | null {
   if (!target.id || !target.name) return null;
-
-  const viewerId = viewer.supabaseUserId ?? null;
-  const targetYaarzo = target.yaarzoUserId ?? null;
-
-  if (viewerId && targetYaarzo && viewerId !== targetYaarzo) {
-    return {
-      backend: "supabase",
-      peerSupabaseId: targetYaarzo,
-      peerLabel: target.name,
-    };
-  }
 
   return {
     backend: "codychat",

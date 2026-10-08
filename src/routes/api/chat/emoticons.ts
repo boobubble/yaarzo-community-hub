@@ -10,9 +10,10 @@ import {
   cookieHeader,
   openSession,
   parseRequestCookie,
+  type CodySession,
 } from "@/lib/codychat-adapter";
 
-async function loadPack(session: { cookies: Record<string, string>; token: string }, packId: string) {
+async function loadPack(session: CodySession, packId: string) {
   const response = await codyFetch("system/action/emoticon.php", {
     method: "POST",
     headers: codyAjaxHeaders(session),

@@ -18,11 +18,11 @@ export function ConversationNavStrip({
   onOpenConversation,
   onCloseConversation,
 }: {
-  currentRoomName?: string;
+  currentRoomName?: string | undefined;
   roomActive: boolean;
   onSelectCurrentRoom: () => void;
   items: RecentDmStripItem[];
-  selectedDmKey?: string;
+  selectedDmKey?: string | undefined;
   onOpenConversation: (conversation: DirectConversation) => void;
   onCloseConversation: (item: RecentDmStripItem) => void;
 }) {

@@ -27,14 +27,14 @@ export const Route = createFileRoute("/api/media/giphy")({
         if (!res.ok) return Response.json({ error: "Giphy request failed." }, { status: 502 });
         const json = await res.json();
         const items = (json.data ?? []).map((g: Record<string, unknown>) => {
-          const images = g.images as Record<string, { url?: string }> | undefined;
+          const images = g["images"] as Record<string, { url?: string }> | undefined;
           return {
-            id: g.id,
-            title: g.title,
+            id: g["id"],
+            title: g["title"],
             previewUrl:
-              images?.fixed_width_small?.url || images?.fixed_width?.url || images?.preview_gif?.url,
-            fullUrl: images?.original?.url || images?.downsized?.url,
-            pageUrl: g.url || `https://giphy.com/gifs/${String(g.id)}`,
+              images?.["fixed_width_small"]?.url || images?.["fixed_width"]?.url || images?.["preview_gif"]?.url,
+            fullUrl: images?.["original"]?.url || images?.["downsized"]?.url,
+            pageUrl: g["url"] || `https://giphy.com/gifs/${String(g["id"])}`,
           };
         });
         return Response.json({ items }, { headers: { "Cache-Control": "private, max-age=30" } });

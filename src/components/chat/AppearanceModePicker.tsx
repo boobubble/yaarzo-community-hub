@@ -34,7 +34,7 @@ export function AppearanceModePicker({
     const cycle = () => {
       const order: AppearancePreference[] = ["light", "dark", "auto"];
       const index = order.indexOf(preference);
-      onChange(order[(index + 1) % order.length]);
+      onChange(order[(index + 1) % order.length] ?? "light");
     };
 
     const Icon =

@@ -29,7 +29,7 @@ function plainText(value: unknown) {
 }
 
 function codyLogType(log: Record<string, unknown>): string {
-  return String(log.log_type ?? log.log_type_id ?? log.type ?? "").trim();
+  return String(log["log_type"] ?? log["log_type_id"] ?? log["type"] ?? "").trim();
 }
 
 function isCodySystemLogType(logType: string): boolean {
@@ -40,11 +40,11 @@ function isCodySystemLogType(logType: string): boolean {
 }
 
 function systemSubjectName(log: Record<string, unknown>): string {
-  return plainText(log.tname ?? log.tuser ?? "");
+  return plainText(log["tname"] ?? log["tuser"] ?? "");
 }
 
 function codyLogAvatarUrl(log: Record<string, unknown>): string | undefined {
-  const thumb = log.user_tumb ?? log.usertumb;
+  const thumb = log["user_tumb"] ?? log["usertumb"];
   if (typeof thumb !== "string" || !thumb.trim()) return undefined;
   const url = resolveCodyPublicUrl(thumb.trim());
   return url || undefined;
@@ -52,14 +52,14 @@ function codyLogAvatarUrl(log: Record<string, unknown>): string | undefined {
 
 function isCodySystemLogRecord(log: Record<string, unknown>, logType: string): boolean {
   if (isCodySystemLogType(logType)) return true;
-  if (log.log_sys === 1 || log.log_sys === "1") return true;
-  if (log.syslog === 1 || log.syslog === "1") return true;
+  if (log["log_sys"] === 1 || log["log_sys"] === "1") return true;
+  if (log["syslog"] === 1 || log["syslog"] === "1") return true;
   return false;
 }
 
 /** Build display text for Cody JSON system logs (see chat `renderSystemMessage`). */
 function systemMessageContent(log: Record<string, unknown>, logType: string): string {
-  const fromHtml = plainText(log.log_content ?? log.content ?? log.message);
+  const fromHtml = plainText(log["log_content"] ?? log["content"] ?? log["message"]);
   if (fromHtml) return fromHtml;
 
   const name = systemSubjectName(log);
@@ -82,7 +82,7 @@ function parseJsonChatLog(
     if (!content) return null;
     const subject = systemSubjectName(log);
     const avatarUrl = codyLogAvatarUrl(log);
-    const id = String(log.log_id ?? log.id ?? `system-${index}-${content.slice(0, 24)}`);
+    const id = String(log["log_id"] ?? log["id"] ?? `system-${index}-${content.slice(0, 24)}`);
     return {
       id,
       author: "system",
@@ -94,24 +94,24 @@ function parseJsonChatLog(
     };
   }
 
-  const body = parseCodyMessageHtml(log.log_content ?? log.content ?? log.message);
-  let content = body.plainText || plainText(log.log_content ?? log.content ?? log.message);
+  const body = parseCodyMessageHtml(log["log_content"] ?? log["content"] ?? log["message"]);
+  let content = body.plainText || plainText(log["log_content"] ?? log["content"] ?? log["message"]);
   if (!content) return null;
 
   const author =
-    plainText(log.user_name ?? log.username ?? log.name) || "Yaarzo";
-  const id = String(log.log_id ?? log.id ?? `${author}-${index}-${content.slice(0, 24)}`);
+    plainText(log["user_name"] ?? log["username"] ?? log["name"]) || "Yaarzo";
+  const id = String(log["log_id"] ?? log["id"] ?? `${author}-${index}-${content.slice(0, 24)}`);
   const quote = parseCodyQuoteFromLog(log);
   const authorUserId =
-    log.user_id != null ? String(log.user_id).slice(0, 64) : undefined;
+    log["user_id"] != null ? String(log["user_id"]).slice(0, 64) : undefined;
 
   return {
     id,
     author,
-    authorUserId,
     content,
-    parts: body.parts.length ? body.parts : undefined,
-    quote,
+    ...(authorUserId ? { authorUserId } : {}),
+    ...(body.parts.length ? { parts: body.parts } : {}),
+    ...(quote ? { quote } : {}),
   };
 }
 
@@ -151,7 +151,7 @@ function isCodySystemLogElement(element: HTMLElement, content: string): boolean 
   ) {
     return true;
   }
-  const dataType = element.getAttribute("data-type") ?? element.dataset.type;
+  const dataType = element.getAttribute("data-type") ?? element.dataset["type"];
   if (dataType === "2" || dataType === "3") return true;
   return /has joined the room|has left the room/iu.test(content);
 }
@@ -171,12 +171,12 @@ export function maxNumericPublicLogId(messages: CodyPublicMessage[]): number {
  * `rdata.room_logs` is for room reset/bootstrap only — do not prefer it when `mlogs` is present.
  */
 export function extractChatPollLogs(payload: Record<string, unknown>): unknown {
-  if ("mlogs" in payload && payload.mlogs != null) {
-    return payload.mlogs;
+  if ("mlogs" in payload && payload["mlogs"] != null) {
+    return payload["mlogs"];
   }
-  const rdata = payload.rdata;
+  const rdata = payload["rdata"];
   if (rdata && typeof rdata === "object") {
-    const roomLogs = (rdata as Record<string, unknown>).room_logs;
+    const roomLogs = (rdata as Record<string, unknown>)["room_logs"];
     if (roomLogs != null) return roomLogs;
   }
   return undefined;
@@ -184,18 +184,18 @@ export function extractChatPollLogs(payload: Record<string, unknown>): unknown {
 
 /** Room-action cursor (`cact`), not chat log id. */
 export function readChatPollRoomAction(payload: Record<string, unknown>): number | undefined {
-  const cact = readNumericField(payload.cact);
+  const cact = readNumericField(payload["cact"]);
   if (cact !== undefined) return cact;
-  const rdata = payload.rdata;
+  const rdata = payload["rdata"];
   if (rdata && typeof rdata === "object") {
-    return readNumericField((rdata as Record<string, unknown>).room_action);
+    return readNumericField((rdata as Record<string, unknown>)["room_action"]);
   }
   return undefined;
 }
 
 /** Latest chat log id cursor (`last`), not room-action counter. */
 export function readChatPollLastLogId(payload: Record<string, unknown>): number | undefined {
-  return readNumericField(payload.last);
+  return readNumericField(payload["last"]);
 }
 
 export function normalizePublicChatLogs(value: unknown): CodyPublicMessage[] {
@@ -262,9 +262,9 @@ export function normalizePublicChatLogs(value: unknown): CodyPublicMessage[] {
         (isSystem ? "system" : "Yaarzo");
 
       const id =
-        element.dataset.log ??
+        element.dataset["log"] ??
         element.getAttribute("data") ??
-        element.dataset.id ??
+        element.dataset["id"] ??
         (element.id?.replace(/^log/u, "") ||
           `${author}-${index}-${content.slice(0, 24)}`);
 
@@ -275,11 +275,11 @@ export function normalizePublicChatLogs(value: unknown): CodyPublicMessage[] {
         {
           id,
           author: isSystem ? "system" : author,
-          authorUserId: isSystem ? undefined : authorUserId,
           content,
-          parts: body.parts.length ? body.parts : undefined,
-          quote: isSystem ? undefined : quote,
           system: isSystem,
+          ...(!isSystem && authorUserId ? { authorUserId } : {}),
+          ...(body.parts.length ? { parts: body.parts } : {}),
+          ...(!isSystem && quote ? { quote } : {}),
           ...(isSystem ? { systemLogType: "system" } : {}),
           ...(subject ? { systemSubjectName: subject } : {}),
         },
@@ -321,9 +321,9 @@ export function summarizePublicChatLogsForDebug(value: unknown): {
     count: normalized.length,
     rows: normalized.slice(0, 8).map((row) => ({
       id: row.id,
-      logType: row.systemLogType,
       text: row.content.slice(0, 120),
-      system: row.system,
+      ...(row.systemLogType ? { logType: row.systemLogType } : {}),
+      ...(row.system !== undefined ? { system: row.system } : {}),
     })),
   };
 }

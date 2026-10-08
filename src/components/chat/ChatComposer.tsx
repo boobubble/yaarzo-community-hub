@@ -35,7 +35,7 @@ export function ChatComposer({
   uploading?: boolean;
   media: MediaFlags;
   canUpload?: boolean;
-  replyPreview?: ChatComposerReplyPreview;
+  replyPreview?: ChatComposerReplyPreview | undefined;
   onSend: (text: string) => Promise<boolean> | boolean;
   onUploadFile?: (file: File) => Promise<boolean>;
 }) {

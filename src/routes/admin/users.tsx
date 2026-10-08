@@ -86,7 +86,7 @@ function displayRoleForUser(
   if (!roles?.length) return "Member";
   if (roles.includes("super_admin")) return "Super admin";
   if (roles.includes("admin")) return "Admin";
-  return roles[0].replace(/_/g, " ");
+  return roles[0]?.replace(/_/g, " ") ?? "Member";
 }
 
 function AdminUsers() {
@@ -112,8 +112,9 @@ function AdminUsers() {
       }
       const map: Record<string, string[]> = {};
       for (const row of data ?? []) {
-        if (!map[row.user_id]) map[row.user_id] = [];
-        map[row.user_id].push(row.role);
+        const roles = map[row.user_id] ?? [];
+        roles.push(row.role);
+        map[row.user_id] = roles;
       }
       setRolesQueryFailed(false);
       setRolesByUserId(map);

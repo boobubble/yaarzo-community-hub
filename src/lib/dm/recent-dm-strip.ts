@@ -1,6 +1,5 @@
 import type { CodyPrivateConversation } from "@/lib/codychat-private";
 import type { DirectConversation } from "@/lib/dm/direct-conversation";
-import type { RegisteredDmConversation } from "@/lib/dm/use-registered-dm";
 import type { DirectoryProfile } from "@/lib/profiles/use-profiles-directory";
 
 export type RecentDmStripItem = {
@@ -13,36 +12,26 @@ export type RecentDmStripItem = {
 };
 
 export function buildRecentDmStripItems(
-  registered: RegisteredDmConversation[],
   cody: CodyPrivateConversation[],
   profiles: Record<string, DirectoryProfile>,
   maxItems = 12,
 ): RecentDmStripItem[] {
   const items: RecentDmStripItem[] = [];
-
-  for (const row of registered) {
-    const profile = profiles[row.peerId];
-    items.push({
-      key: `supabase:${row.peerId}`,
-      label: profile?.display_name || profile?.username || "Member",
-      unread: row.unread,
-      avatarUrl: profile?.avatar_url ?? undefined,
-      conversation: {
-        backend: "supabase",
-        peerSupabaseId: row.peerId,
-        peerLabel: profile?.display_name || profile?.username,
-      },
-      sortAt: new Date(row.lastMessage?.created_at ?? 0).getTime(),
-    });
+  const codyBase = Date.now();
+  const profileByUsername = new Map<string, DirectoryProfile>();
+  for (const profile of Object.values(profiles)) {
+    profileByUsername.set(profile.username.trim().toLowerCase(), profile);
   }
 
-  const codyBase = Date.now();
   cody.forEach((row, index) => {
+    const profile = profileByUsername.get(row.userName.trim().toLowerCase());
+
+    const avatarUrl = profile?.avatar_url ?? row.avatar;
     items.push({
       key: `codychat:${row.userId}`,
-      label: row.userName,
+      label: profile?.display_name || profile?.username || row.userName,
       unread: row.unread,
-      avatarUrl: row.avatar,
+      ...(avatarUrl ? { avatarUrl } : {}),
       conversation: {
         backend: "codychat",
         peerCodyId: row.userId,

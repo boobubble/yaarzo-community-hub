@@ -81,7 +81,7 @@ async function enrichPeers(
 
 export async function resolveCodyTargetId(
   session: CodySession,
-  input: { codyUserId?: string; yaarzoUserId?: string },
+  input: { codyUserId?: string | undefined; yaarzoUserId?: string | undefined },
 ): Promise<string | null> {
   if (input.codyUserId && isValidCodyUserId(input.codyUserId)) return input.codyUserId;
   if (!input.yaarzoUserId) return null;
@@ -106,7 +106,7 @@ export async function runCodyFriendAction(
     });
     const payload = parseCodyActionJson(await response.text());
     if (!response.ok || !codyActionOk(payload)) {
-      return { ok: false, error: payload.emessage ?? "Could not ignore user.", code: payload.code };
+      return { ok: false, error: payload.emessage ?? "Could not ignore user.", ...(payload.code !== undefined ? { code: payload.code } : {}) };
     }
     return { ok: true };
   }
@@ -117,7 +117,7 @@ export async function runCodyFriendAction(
     });
     const payload = parseCodyActionJson(await response.text());
     if (!response.ok || !codyActionOk(payload)) {
-      return { ok: false, error: payload.emessage ?? "Could not unignore user.", code: payload.code };
+      return { ok: false, error: payload.emessage ?? "Could not unignore user.", ...(payload.code !== undefined ? { code: payload.code } : {}) };
     }
     return { ok: true };
   }
@@ -131,7 +131,7 @@ export async function runCodyFriendAction(
       return {
         ok: false,
         error: payload.emessage ?? "Friend action was not accepted.",
-        code: payload.code,
+        ...(payload.code !== undefined ? { code: payload.code } : {}),
       };
     }
     return { ok: true };
@@ -143,7 +143,7 @@ export async function runCodyFriendAction(
     });
     const payload = parseCodyActionJson(await response.text());
     if (!response.ok || !codyActionOk(payload)) {
-      return { ok: false, error: payload.emessage ?? "Could not remove friend.", code: payload.code };
+      return { ok: false, error: payload.emessage ?? "Could not remove friend.", ...(payload.code !== undefined ? { code: payload.code } : {}) };
     }
     return { ok: true };
   }

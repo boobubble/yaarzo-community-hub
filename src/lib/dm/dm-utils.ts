@@ -38,10 +38,10 @@ export function parseDmChannel(
   const parts = channelId.slice(3).split(":");
   if (authUserId && isUuid(authUserId)) {
     const peer =
-      parts[0] === authUserId ? parts[1] : parts[1] === authUserId ? parts[0] : null;
+      parts[0] === authUserId ? parts[1] ?? null : parts[1] === authUserId ? parts[0] ?? null : null;
     return { peerId: peer, valid: !!peer };
   }
-  return { peerId: parts[0], valid: true };
+  return { peerId: parts[0] ?? null, valid: true };
 }
 
 export const DM_MESSAGES_INSERT_FILTER = "channel_id=like.dm:%";

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageMediaContent } from "@/components/chat/media/MessageMediaContent";
-import { useRegisteredDmContext } from "@/lib/dm/registered-dm-provider";
 import type { CodyPrivateMessage } from "@/lib/codychat-private";
 import { isOwnPrivateMessage } from "@/lib/codychat-private";
 import {
@@ -23,15 +22,13 @@ export function DirectMessagesWorkspace({
   activeConversation,
   onPmSent,
 }: {
-  registeredUserId?: string;
-  guestName?: string;
+  registeredUserId?: string | undefined;
+  guestName?: string | undefined;
   hasCodySession: boolean;
   profiles: Record<string, DirectoryProfile>;
   activeConversation: DirectConversation | null;
   onPmSent?: () => void | Promise<void>;
 }) {
-  const registered = useRegisteredDmContext();
-  const { openConversation: openRegisteredConversation } = registered;
   const [codyMessages, setCodyMessages] = useState<CodyPrivateMessage[]>([]);
   const [codyLoading, setCodyLoading] = useState(false);
   const [codySending, setCodySending] = useState(false);
@@ -40,10 +37,11 @@ export function DirectMessagesWorkspace({
   const [mediaFlags, setMediaFlags] = useState(mergeMediaConfig(null));
   const media = useMemo(() => mergeMediaConfig(mediaFlags), [mediaFlags]);
 
-  const codyTarget = useMemo(
-    () => (activeConversation ? codychatTargetFromConversation(activeConversation) : null),
-    [activeConversation],
-  );
+  const codyTarget = useMemo(() => {
+    if (!activeConversation) return null;
+    if (activeConversation.backend === "supabase") return null;
+    return codychatTargetFromConversation(activeConversation);
+  }, [activeConversation]);
 
   useEffect(() => {
     void fetch("/api/media/config")
@@ -51,13 +49,6 @@ export function DirectMessagesWorkspace({
       .then((json) => setMediaFlags({ youtube: json.youtube, giphy: json.giphy }))
       .catch(() => undefined);
   }, []);
-
-  const supabasePeerId =
-    activeConversation?.backend === "supabase" ? activeConversation.peerSupabaseId : null;
-
-  useEffect(() => {
-    if (supabasePeerId) openRegisteredConversation(supabasePeerId);
-  }, [supabasePeerId, openRegisteredConversation]);
 
   const loadCodyThread = useCallback(async (target: { userId: string }) => {
     setCodyLoading(true);
@@ -106,14 +97,18 @@ export function DirectMessagesWorkspace({
     return () => window.clearInterval(interval);
   }, [codyTarget]);
 
-  const displayName = (peerId: string) => {
-    const p = profiles[peerId];
-    return p?.display_name || p?.username || "Member";
-  };
+  const profileByUsername = useMemo(() => {
+    const map = new Map<string, DirectoryProfile>();
+    for (const profile of Object.values(profiles)) {
+      map.set(profile.username.trim().toLowerCase(), profile);
+    }
+    return map;
+  }, [profiles]);
 
-  const threadIsSupabase = activeConversation?.backend === "supabase";
-  const threadMessages = threadIsSupabase ? registered.messages : codyMessages;
-  const threadSending = threadIsSupabase ? registered.sending : codySending;
+  const displayNameForCodyPeer = (peerName: string) => {
+    const profile = profileByUsername.get(peerName.trim().toLowerCase());
+    return profile?.display_name || profile?.username || peerName;
+  };
 
   const dmScrollRef = useRef<HTMLElement>(null);
   const stickToBottomRef = useRef(true);
@@ -149,7 +144,7 @@ export function DirectMessagesWorkspace({
   useLayoutEffect(() => {
     const container = dmScrollRef.current;
     if (!container || !activeConversationKey) return;
-    if (!threadIsSupabase && codyLoading) return;
+    if (codyLoading) return;
 
     if (pendingScrollRef.current) {
       const behavior = pendingScrollRef.current;
@@ -161,13 +156,7 @@ export function DirectMessagesWorkspace({
     if (stickToBottomRef.current) {
       container.scrollTo({ top: container.scrollHeight, behavior: "auto" });
     }
-  }, [threadMessages, activeConversationKey, codyLoading, threadIsSupabase]);
-
-  const sendSupabase = async (text: string) => {
-    const ok = await registered.sendMessage(text);
-    if (ok) scheduleScrollToBottom("auto");
-    return ok;
-  };
+  }, [codyMessages, activeConversationKey, codyLoading]);
 
   const sendCody = async (text: string) => {
     if (!codyTarget) return false;
@@ -200,7 +189,14 @@ export function DirectMessagesWorkspace({
     );
   }
 
-  if (!activeConversation) {
+  if (!activeConversation || activeConversation.backend === "supabase") {
+    if (activeConversation?.backend === "supabase") {
+      return (
+        <div className="m-auto max-w-xs px-4 text-center text-[11px] text-muted-foreground">
+          This conversation is not available. Message them from Members when they are in the chatroom.
+        </div>
+      );
+    }
     return (
       <div className="m-auto flex max-w-sm flex-col items-center px-4 text-center">
         <p className="text-sm font-extrabold text-foreground">Direct Messages</p>
@@ -211,38 +207,28 @@ export function DirectMessagesWorkspace({
     );
   }
 
-  const peerTitle =
-    activeConversation.backend === "supabase"
-      ? displayName(activeConversation.peerSupabaseId)
-      : activeConversation.peerName;
+  const peerTitle = displayNameForCodyPeer(activeConversation.peerName);
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col">
       <header className="shrink-0 border-b border-border px-3 py-2.5">
         <p className="text-sm font-extrabold text-foreground">{peerTitle}</p>
-        <p className="text-[10px] text-muted-foreground">
-          {activeConversation.backend === "supabase" ? "Registered Yaarzo DM" : "CodyChat private message"}
-        </p>
+        <p className="text-[10px] text-muted-foreground">CodyChat private message</p>
       </header>
       <main
         ref={dmScrollRef}
         className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4"
       >
-        {codyLoading && activeConversation.backend === "codychat" ? (
+        {codyLoading ? (
           <p className="m-auto text-xs text-muted-foreground">Loading messages…</p>
         ) : (
           <div className="yaarzo-chat-rail w-full space-y-3">
-            {threadMessages.map((entry) => {
-              const isOwn = threadIsSupabase
-                ? entry.author_id === registeredUserId
-                : isOwnPrivateMessage(entry as CodyPrivateMessage, guestName);
-              const text = threadIsSupabase
-                ? (entry as { text: string }).text
-                : (entry as CodyPrivateMessage).content;
+            {codyMessages.map((entry) => {
+              const isOwn = isOwnPrivateMessage(entry, guestName);
               return (
                 <div key={entry.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                   <div className="max-w-[84%] rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm sm:max-w-[70%]">
-                    <MessageMediaContent text={text} media={media} />
+                    <MessageMediaContent text={entry.content} media={media} />
                   </div>
                 </div>
               );
@@ -252,14 +238,14 @@ export function DirectMessagesWorkspace({
       </main>
       <footer className="shrink-0 border-t border-border bg-card/90 p-2.5">
         <ChatComposer
-          disabled={false}
-          sending={threadSending}
+          disabled={!codyTarget}
+          sending={codySending}
           media={{
             youtube: { enabled: media.youtube.enabled },
             giphy: { enabled: media.giphy.enabled },
           }}
           placeholder="Write a private message…"
-          onSend={threadIsSupabase ? sendSupabase : sendCody}
+          onSend={sendCody}
         />
       </footer>
     </div>

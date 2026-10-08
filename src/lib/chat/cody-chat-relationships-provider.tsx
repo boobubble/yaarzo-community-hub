@@ -45,7 +45,7 @@ export function CodyChatRelationshipsProvider({
   children: ReactNode;
   /** True when the user has an active CodyChat session in this chatroom. */
   chatSessionActive: boolean;
-  yaarzoUserId?: string;
+  yaarzoUserId?: string | undefined;
 }) {
   const [snapshot, setSnapshot] = useState<CodyFriendsSnapshot | null>(null);
   const [loaded, setLoaded] = useState(false);
