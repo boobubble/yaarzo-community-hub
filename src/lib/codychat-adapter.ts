@@ -158,6 +158,13 @@ export function extractToken(html: string) {
   return html.match(/var\s+utk\s*=\s*['"]([^'"]+)['"]/u)?.[1] ?? null;
 }
 
+/** Read CodyChat's public captcha mode from the bootstrapped page without returning its site key. */
+export function extractCodyCaptchaMode(html: string): 0 | 1 | 2 | 3 | null {
+  const mode = html.match(/\bvar\s+recapt\s*=\s*([0-3])\s*;/u)?.[1];
+  if (mode === undefined) return null;
+  return Number(mode) as 0 | 1 | 2 | 3;
+}
+
 export function isLoggedIn(html: string) {
   return /var\s+logged\s*=\s*1\s*;/u.test(html);
 }

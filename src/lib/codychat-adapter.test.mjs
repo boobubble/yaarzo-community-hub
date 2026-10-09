@@ -13,6 +13,7 @@ import {
   codyAjaxHeaders,
   codyFetch,
   cookieHeader,
+  extractCodyCaptchaMode,
   openSession,
   parseMembers,
   parseRooms,
@@ -35,6 +36,15 @@ test("API paths reject traversal and offsite credential forwarding", () => {
   for (const path of ["../login.php", "/../login.php", "%2e%2e/login.php", "%252e%252e/login.php", "foo/%2f..%2fbar", "https://other.example/login.php", "//other.example/login.php", "https://chat.yaarzo.com/system/action/login.php"]) {
     assert.throws(() => resolveCodyEndpointUrl(path));
   }
+});
+
+test("CodyChat captcha mode is parsed without exposing the provider site key", () => {
+  assert.equal(extractCodyCaptchaMode('<script>var recapt = 0; var recaptKey = "public";</script>'), 0);
+  assert.equal(extractCodyCaptchaMode('<script>var recapt = 1; var recaptKey = "public";</script>'), 1);
+  assert.equal(extractCodyCaptchaMode('<script>var recapt = 2; var recaptKey = "public";</script>'), 2);
+  assert.equal(extractCodyCaptchaMode('<script>var recapt = 3; var recaptKey = "public";</script>'), 3);
+  assert.equal(extractCodyCaptchaMode('<script>var recapt = 4;</script>'), null);
+  assert.equal(extractCodyCaptchaMode("<html></html>"), null);
 });
 
 test("actual guest, registered, session, room, message and DM call paths use the base", async (t) => {
@@ -144,13 +154,20 @@ test("registered, rooms and message routes preserve PHP session and POST token c
   assert.match(messages, /method:\s*"POST"[\s\S]*headers:\s*codyAjaxHeaders\(session\)[\s\S]*token:\s*session\.token/u);
 });
 
-test("guest login requires and forwards CodyChat's CAPTCHA response contract", () => {
+test("guest login follows CodyChat's CAPTCHA mode and native response contract", () => {
   const guest = readFileSync(new URL("../routes/api/chat/guest-login.ts", import.meta.url), "utf8");
-  assert.match(guest, /input\.get\("recaptcha"\)/u);
-  assert.match(guest, /if \(!recaptcha\)[\s\S]*status:\s*400/u);
+  const homeForm = readFileSync(new URL("../components/home/HomeGuestEntryForm.tsx", import.meta.url), "utf8");
+  const chatForm = readFileSync(new URL("../components/chat/YaarzoChatApp.tsx", import.meta.url), "utf8");
+  assert.match(guest, /extractCodyCaptchaMode\(bootstrapHtml\)/u);
+  assert.match(guest, /captchaMode === 0 \? "disabled" : submittedCaptcha/u);
+  assert.match(guest, /captchaMode > 0 && !submittedCaptcha[\s\S]*status:\s*503/u);
   assert.match(guest, /gusername:\s*nickname,[\s\S]*ggender:\s*gender,[\s\S]*gbirth:\s*birthDate,[\s\S]*recaptcha,/u);
   assert.match(guest, /result\.code !== 1/u);
-  assert.doesNotMatch(guest, /recaptcha:\s*["']disabled["']/u);
+  assert.match(guest, /4:\s*["']That nickname is not available\./u);
+  assert.match(guest, /99:\s*["']This birth date is not eligible/u);
+  assert.match(homeForm, /data\.set\("gender",\s*gender\)[\s\S]*data\.set\("birthDate",\s*birthDate\)/u);
+  assert.match(homeForm, /if \(!ageOk\)/u);
+  assert.match(chatForm, /GuestLoginDialog[\s\S]*data\.set\("gender",\s*gender\)[\s\S]*name="birthDate" type="date" required/u);
 });
 
 test("native SSO reports the missing CodyChat Test endpoint without falling back to production", () => {

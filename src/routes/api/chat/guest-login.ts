@@ -5,6 +5,7 @@ import {
   CODYCHAT_ORIGIN,
   codyFetch,
   cookieHeader,
+  extractCodyCaptchaMode,
   extractToken,
   isLoggedIn,
   sealSession,
@@ -16,7 +17,6 @@ import {
 const responseForCode: Record<number, string> = {
   0: "CodyChat could not complete the login.",
   4: "That nickname is not available.",
-  17: "CodyChat requires reCAPTCHA for this login.",
   99: "This birth date is not eligible for guest access.",
 };
 
@@ -39,14 +39,28 @@ export const Route = createFileRoute("/api/chat/guest-login")({
         if (!nickname || nickname.length > 64 || !["1", "2", "3"].includes(gender) || !/^\d{4}-\d{2}-\d{2}$/u.test(birthDate)) {
           return Response.json({ error: "Please complete the guest details." }, { status: 400 });
         }
-        const recaptcha = String(input.get("recaptcha") ?? "").trim();
-        if (!recaptcha) {
-          return Response.json({ error: "CodyChat guest verification is required." }, { status: 400 });
-        }
-
         try {
           const bootstrap = await codyFetch("");
           let cookies = updateCookieJar(bootstrap);
+          const bootstrapHtml = await bootstrap.text();
+          const captchaMode = extractCodyCaptchaMode(bootstrapHtml);
+          if (captchaMode === null) {
+            return Response.json({ error: "CodyChat guest verification settings are unavailable." }, { status: 502 });
+          }
+
+          const submittedCaptcha = String(input.get("recaptcha") ?? "").trim();
+          if (captchaMode > 0 && !submittedCaptcha) {
+            const provider = captchaMode === 1
+              ? "Google reCAPTCHA"
+              : captchaMode === 2
+                ? "hCaptcha"
+                : "Cloudflare Turnstile";
+            return Response.json(
+              { error: `${provider} is required, but its challenge is unavailable in this guest form.` },
+              { status: 503 },
+            );
+          }
+          const recaptcha = captchaMode === 0 ? "disabled" : submittedCaptcha;
           const body = new URLSearchParams({
             gusername: nickname,
             ggender: gender,
