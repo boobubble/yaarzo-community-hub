@@ -59,11 +59,11 @@ test("actual guest, registered, session, room, message and DM call paths use the
 });
 
 test("Origin, Referer, authentication headers and request payload are preserved", async (t) => {
-  const session = { cookies: { tc_userid: "test-user", tc_utk: "test-token", tc_ssid: "test-session", ignored: "discard" }, token: "test-token", nickname: "test", issuedAt: 1 };
+  const session = { cookies: { tc_userid: "test-user", tc_utk: "test-token", tc_ssid: "test-session", PHPSESSID: "php-session", ignored: "discard" }, token: "test-token", nickname: "test", issuedAt: 1 };
   const headers = codyAjaxHeaders(session);
   assert.equal(headers.Origin, CODYCHAT_PUBLIC_ORIGIN);
   assert.equal(headers.Referer, CODYCHAT_BASE_URL);
-  assert.equal(headers.Cookie, "tc_userid=test-user; tc_utk=test-token; tc_ssid=test-session");
+  assert.equal(headers.Cookie, "tc_userid=test-user; tc_utk=test-token; tc_ssid=test-session; PHPSESSID=php-session");
   const body = new URLSearchParams({ token: session.token });
   t.mock.method(globalThis, "fetch", async (url, init) => {
     assert.equal(url, `${CODYCHAT_BASE_URL}system/action/chat_process.php`);
@@ -114,20 +114,43 @@ test("relative media, avatars and room icons use the test root without double-pr
   assert.equal(parseRooms('<div class="room_element" onclick="switchRoom(1, 0, 0);"><div class="roomtitle">Test</div><img class="room_cicon" src="/chatroom/default_images/room.png"></div>')[0].icon, `${CODYCHAT_BASE_URL}default_images/room.png`);
 });
 
-test("test cookie allowlist, encrypted sessions and same-origin checks remain intact", async () => {
+test("CodyChat PHP session cookie stays server-side inside the encrypted session", async () => {
   const headers = new Headers();
   headers.append("Set-Cookie", "tc_userid=yaarzo-user; Path=/; Secure; HttpOnly; SameSite=Lax");
   headers.append("Set-Cookie", "tc_utk=token; Path=/; Secure; HttpOnly; SameSite=Lax");
   headers.append("Set-Cookie", "tc_ssid=session; Path=/; Secure; HttpOnly; SameSite=Lax");
-  headers.append("Set-Cookie", "PHPSESSID=ignored; Path=/; Secure");
+  headers.append("Set-Cookie", "PHPSESSID=php-session; Path=/; Secure; HttpOnly; SameSite=Lax");
+  headers.append("Set-Cookie", "untrusted=discard; Path=/; Secure");
   const cookies = updateCookieJar(new Response("", { headers }));
-  assert.equal(cookieHeader({ ...cookies, ignored: "discard" }), "tc_userid=yaarzo-user; tc_utk=token; tc_ssid=session");
+  assert.deepEqual(cookies, { tc_userid: "yaarzo-user", tc_utk: "token", tc_ssid: "session", PHPSESSID: "php-session" });
+  assert.equal(cookieHeader({ ...cookies, untrusted: "discard" }), "tc_userid=yaarzo-user; tc_utk=token; tc_ssid=session; PHPSESSID=php-session");
   const session = { cookies, token: "test-token", nickname: "test", issuedAt: 1 };
   const sealed = await sealSession(session, "regression-test-only");
   assert.deepEqual(await openSession(sealed, "regression-test-only"), session);
   assert.equal(await openSession(sealed, "wrong-test-secret"), null);
   assert.match(sessionCookie(sealed), /Path=\/;.*HttpOnly; Secure; SameSite=Lax/u);
+  assert.doesNotMatch(sessionCookie(sealed), /php-session|PHPSESSID/u);
+  const expired = new Headers({ "Set-Cookie": "PHPSESSID=; Path=/; Max-Age=0; Secure; HttpOnly" });
+  assert.deepEqual(updateCookieJar(new Response("", { headers: expired }), cookies), { tc_userid: "yaarzo-user", tc_utk: "token", tc_ssid: "session" });
   assert.equal(validateSameOrigin(new Request("https://yaarzo.example/api/chat/guest-login", { headers: { Origin: "https://other.example" } })), false);
+});
+
+test("registered, rooms and message routes preserve PHP session and POST token continuity", () => {
+  const registered = readFileSync(new URL("../routes/api/chat/registered-login.ts", import.meta.url), "utf8");
+  const rooms = readFileSync(new URL("../routes/api/chat/rooms.ts", import.meta.url), "utf8");
+  const messages = readFileSync(new URL("../routes/api/chat/messages.ts", import.meta.url), "utf8");
+  assert.match(registered, /updateCookieJar\(bridge\)[\s\S]*Cookie:\s*cookieHeader\(cookies\)[\s\S]*extractToken\(html\)[\s\S]*sealSession\(/u);
+  assert.match(rooms, /method:\s*"POST"[\s\S]*headers:\s*codyAjaxHeaders\(session\)[\s\S]*body:\s*new URLSearchParams\(\{\s*token:\s*session\.token/u);
+  assert.match(messages, /method:\s*"POST"[\s\S]*headers:\s*codyAjaxHeaders\(session\)[\s\S]*token:\s*session\.token/u);
+});
+
+test("guest login requires and forwards CodyChat's CAPTCHA response contract", () => {
+  const guest = readFileSync(new URL("../routes/api/chat/guest-login.ts", import.meta.url), "utf8");
+  assert.match(guest, /input\.get\("recaptcha"\)/u);
+  assert.match(guest, /if \(!recaptcha\)[\s\S]*status:\s*400/u);
+  assert.match(guest, /gusername:\s*nickname,[\s\S]*ggender:\s*gender,[\s\S]*gbirth:\s*birthDate,[\s\S]*recaptcha,/u);
+  assert.match(guest, /result\.code !== 1/u);
+  assert.doesNotMatch(guest, /recaptcha:\s*["']disabled["']/u);
 });
 
 test("native SSO reports the missing CodyChat Test endpoint without falling back to production", () => {

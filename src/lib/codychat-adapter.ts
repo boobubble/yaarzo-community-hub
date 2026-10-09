@@ -45,7 +45,10 @@ export type CodyRoom = {
   icon?: string;
 };
 
-const allowedCookies = new Set(["tc_userid", "tc_utk", "tc_ssid"]);
+// PHP's default session_start() cookie carries the server-side tc_token checked
+// by CodyChat. Keep it inside the encrypted Yaarzo session and forward it only
+// from server-side requests to the configured CodyChat origin.
+const allowedCookies = new Set(["tc_userid", "tc_utk", "tc_ssid", "PHPSESSID"]);
 
 function base64UrlEncode(bytes: Uint8Array) {
   let binary = "";

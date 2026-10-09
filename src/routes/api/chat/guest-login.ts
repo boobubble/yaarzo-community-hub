@@ -39,6 +39,10 @@ export const Route = createFileRoute("/api/chat/guest-login")({
         if (!nickname || nickname.length > 64 || !["1", "2", "3"].includes(gender) || !/^\d{4}-\d{2}-\d{2}$/u.test(birthDate)) {
           return Response.json({ error: "Please complete the guest details." }, { status: 400 });
         }
+        const recaptcha = String(input.get("recaptcha") ?? "").trim();
+        if (!recaptcha) {
+          return Response.json({ error: "CodyChat guest verification is required." }, { status: 400 });
+        }
 
         try {
           const bootstrap = await codyFetch("");
@@ -47,7 +51,7 @@ export const Route = createFileRoute("/api/chat/guest-login")({
             gusername: nickname,
             ggender: gender,
             gbirth: birthDate,
-            recaptcha: "disabled",
+            recaptcha,
           });
           const login = await codyFetch("system/action/login.php", {
             method: "POST",
