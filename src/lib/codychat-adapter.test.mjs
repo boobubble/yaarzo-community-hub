@@ -22,6 +22,7 @@ import {
   updateCookieJar,
   validateSameOrigin,
 } from "./codychat-adapter.ts";
+import { buildCodyRoomJoinBody, parseCodyRoomJoinResponse } from "./chat/cody-room-join.ts";
 
 test("bootstrap and slash-prefixed API paths resolve under the CodyChat Test root", () => {
   assert.equal(resolveCodyEndpointUrl(""), CODYCHAT_BASE_URL);
@@ -152,6 +153,57 @@ test("registered, rooms and message routes preserve PHP session and POST token c
   assert.match(registered, /updateCookieJar\(bridge\)[\s\S]*Cookie:\s*cookieHeader\(cookies\)[\s\S]*extractToken\(html\)[\s\S]*sealSession\(/u);
   assert.match(rooms, /method:\s*"POST"[\s\S]*headers:\s*codyAjaxHeaders\(session\)[\s\S]*body:\s*new URLSearchParams\(\{\s*token:\s*session\.token/u);
   assert.match(messages, /method:\s*"POST"[\s\S]*headers:\s*codyAjaxHeaders\(session\)[\s\S]*token:\s*session\.token/u);
+});
+
+test("password room joining uses the verified password and token fields", () => {
+  assert.equal(
+    buildCodyRoomJoinBody(7, "test-token").toString(),
+    "room=7&token=test-token&join_room=1",
+  );
+  assert.equal(
+    buildCodyRoomJoinBody(7, "test-token", "room pass").toString(),
+    "room=7&token=test-token&pass=room+pass&join_room_pass=1",
+  );
+
+  assert.deepEqual(parseCodyRoomJoinResponse('{"code":5}', true), {
+    ok: false,
+    status: 400,
+    reason: "wrong_password",
+    error: "Incorrect room password.",
+    code: 5,
+  });
+  assert.deepEqual(parseCodyRoomJoinResponse('{"access_requirement":true}', true), {
+    ok: false,
+    status: 403,
+    reason: "access_requirement",
+    error: "You do not have access to this room.",
+  });
+  assert.deepEqual(parseCodyRoomJoinResponse('{"code":10,"data":{"room_action":2}}', true), {
+    ok: true,
+    data: { room_action: 2 },
+  });
+  assert.deepEqual(parseCodyRoomJoinResponse("", true), { ok: true });
+});
+
+test("friend actions forward the required session token while ignore payloads stay unchanged", () => {
+  const source = readFileSync(new URL("./server/cody-friends-service.ts", import.meta.url), "utf8");
+  assert.match(source, /headers:\s*codyAjaxHeaders\(session\)[\s\S]*body:\s*new URLSearchParams\(fields\)/u);
+  const friendActions = source.slice(source.indexOf('if (action === "send"'), source.indexOf('return { ok: false, error: "Unknown action." }'));
+  assert.match(friendActions, /add_friend:\s*targetCodyUserId,[\s\S]*token:\s*session\.token/u);
+  assert.match(friendActions, /remove_friend:\s*targetCodyUserId,[\s\S]*token:\s*session\.token/u);
+  const ignoreActions = source.slice(source.indexOf('if (action === "ignore")'), source.indexOf('if (action === "send"'));
+  assert.match(ignoreActions, /add_ignore:\s*targetCodyUserId/u);
+  assert.match(ignoreActions, /remove_ignore:\s*targetCodyUserId/u);
+  assert.doesNotMatch(ignoreActions, /token:\s*session\.token/u);
+});
+
+test("password room modal submits a password and keeps the prior room on join failure", () => {
+  const source = readFileSync(new URL("../components/chat/YaarzoChatApp.tsx", import.meta.url), "utf8");
+  assert.match(source, /Password-protected room/u);
+  assert.match(source, /joinRoom\(passwordRoom, roomPassword\)/u);
+  assert.match(source, /reason === "wrong_password"[\s\S]*setRoomPasswordError/u);
+  assert.match(source, /reason === "access_requirement"[\s\S]*setRoomPasswordError/u);
+  assert.match(source, /setRoomId\(room\.id\)/u);
 });
 
 test("guest login follows CodyChat's CAPTCHA mode and native response contract", () => {

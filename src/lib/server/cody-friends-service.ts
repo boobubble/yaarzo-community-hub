@@ -125,6 +125,7 @@ export async function runCodyFriendAction(
   if (action === "send" || action === "accept") {
     const response = await codyPost(session, "system/action/action_friend.php", {
       add_friend: targetCodyUserId,
+      token: session.token,
     });
     const payload = parseCodyActionJson(await response.text());
     if (!response.ok || !codyActionOk(payload)) {
@@ -140,6 +141,7 @@ export async function runCodyFriendAction(
   if (action === "remove") {
     const response = await codyPost(session, "system/action/action_friend.php", {
       remove_friend: targetCodyUserId,
+      token: session.token,
     });
     const payload = parseCodyActionJson(await response.text());
     if (!response.ok || !codyActionOk(payload)) {

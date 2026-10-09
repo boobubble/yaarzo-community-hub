@@ -8,6 +8,7 @@ import {
   parseRooms,
   validateSameOrigin,
 } from "@/lib/codychat-adapter";
+import { buildCodyRoomJoinBody, parseCodyRoomJoinResponse } from "@/lib/chat/cody-room-join";
 
 export const Route = createFileRoute("/api/chat/rooms")({
   server: {
@@ -67,13 +68,8 @@ export const Route = createFileRoute("/api/chat/rooms")({
         const room = Number(input.room);
         if (!Number.isInteger(room) || room <= 0) return Response.json({ error: "Invalid room." }, { status: 400 });
 
-        const body = new URLSearchParams({ room: String(room), token: session.token });
-        if (input.password) {
-          body.set("pass", input.password.slice(0, 128));
-          body.set("join_room_pass", "1");
-        } else {
-          body.set("join_room", "1");
-        }
+        const password = input.password;
+        const body = buildCodyRoomJoinBody(room, session.token, password);
 
         try {
           const response = await codyFetch("system/action/action_room.php", {
@@ -82,21 +78,14 @@ export const Route = createFileRoute("/api/chat/rooms")({
             body,
           });
           const raw = await response.text();
-          if (response.ok && raw.trim() === "") {
+          const result = parseCodyRoomJoinResponse(raw, response.ok);
+          if (!result.ok) {
             return Response.json(
-              { joined: true, room },
-              { headers: { "Cache-Control": "no-store" } },
+              { error: result.error, reason: result.reason, ...(result.code !== undefined ? { code: result.code } : {}) },
+              { status: result.status },
             );
           }
-
-          const payload = JSON.parse(raw) as { code?: number; data?: unknown };
-          if (payload.code !== 10) {
-            return Response.json(
-              { error: payload.code === 5 ? "Incorrect room password." : "CodyChat rejected the room change.", code: payload.code ?? 0 },
-              { status: 400 },
-            );
-          }
-          return Response.json({ joined: true, room, data: payload.data }, { headers: { "Cache-Control": "no-store" } });
+          return Response.json({ joined: true, room, ...(result.data !== undefined ? { data: result.data } : {}) }, { headers: { "Cache-Control": "no-store" } });
         } catch {
           return Response.json({ error: "CodyChat room change is unavailable." }, { status: 502 });
         }

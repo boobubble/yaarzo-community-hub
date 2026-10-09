@@ -1317,6 +1317,10 @@ function EmptyChat({
 
   const [rooms, setRooms] = useState<CodyRoom[]>([]);
   const [roomId, setRoomId] = useState<number>();
+  const [passwordRoom, setPasswordRoom] = useState<CodyRoom | null>(null);
+  const [roomPassword, setRoomPassword] = useState("");
+  const [roomPasswordError, setRoomPasswordError] = useState("");
+  const [joiningPasswordRoom, setJoiningPasswordRoom] = useState(false);
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [replyTo, setReplyTo] = useState<LiveMessage | null>(null);
   const [error, setError] = useState("");
@@ -1398,15 +1402,18 @@ function EmptyChat({
   }, [guestName, roomId]);
 
   const joinRoom = useCallback(
-    async (room: CodyRoom) => {
-      if (room.passwordRequired) {
-        setError(
-          "This room is password protected. Password entry will be enabled separately.",
-        );
+    async (room: CodyRoom, password?: string) => {
+      if (room.passwordRequired && password === undefined) {
+        setPasswordRoom(room);
+        setRoomPassword("");
+        setRoomPasswordError("");
+        setError("");
         return;
       }
 
       setError("");
+      setRoomPasswordError("");
+      if (room.passwordRequired) setJoiningPasswordRoom(true);
 
       try {
         const response = await fetch("/api/chat/rooms", {
@@ -1416,11 +1423,14 @@ function EmptyChat({
           },
           body: JSON.stringify({
             room: room.id,
+            ...(password !== undefined ? { password } : {}),
           }),
         });
 
         const result = (await response.json()) as {
           joined?: boolean;
+          code?: number;
+          reason?: "wrong_password" | "access_requirement" | "rejected" | "invalid_response";
           data?: {
             room_logs?: unknown;
           };
@@ -1428,10 +1438,22 @@ function EmptyChat({
         };
 
         if (!response.ok || !result.joined) {
-          setError(result.error ?? "Could not join this room.");
+          const message = result.error ?? "Could not join this room.";
+          if (result.reason === "wrong_password" || result.code === 5) {
+            setRoomPasswordError(message);
+          } else if (result.reason === "access_requirement") {
+            setRoomPasswordError(message);
+          } else if (room.passwordRequired) {
+            setRoomPasswordError(message);
+          } else {
+            setError(message);
+          }
           return;
         }
 
+        setPasswordRoom(null);
+        setRoomPassword("");
+        setRoomPasswordError("");
         setRoomId(room.id);
         setReplyTo(null);
         lastPublicLogRef.current = 0;
@@ -1467,7 +1489,13 @@ function EmptyChat({
         onMembersRefresh();
         scheduleScrollToBottom("auto");
       } catch {
-        setError("CodyChat is unavailable. Please try again.");
+        if (room.passwordRequired) {
+          setRoomPasswordError("CodyChat is unavailable. Please try again.");
+        } else {
+          setError("CodyChat is unavailable. Please try again.");
+        }
+      } finally {
+        setJoiningPasswordRoom(false);
       }
     },
     [onMembersRefresh],
@@ -2064,6 +2092,65 @@ function EmptyChat({
           />
         </footer>
       ) : null}
+
+      <Dialog
+        open={passwordRoom !== null}
+        onOpenChange={(open) => {
+          if (!open && !joiningPasswordRoom) {
+            setPasswordRoom(null);
+            setRoomPassword("");
+            setRoomPasswordError("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm border-border bg-card">
+          <DialogHeader>
+            <DialogTitle>Password-protected room</DialogTitle>
+            <DialogDescription>
+              Enter the password to join #{passwordRoom?.name ?? "this room"}.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (passwordRoom) void joinRoom(passwordRoom, roomPassword);
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="cody-room-password">Room password</Label>
+              <Input
+                id="cody-room-password"
+                type="password"
+                autoComplete="current-password"
+                maxLength={128}
+                required
+                value={roomPassword}
+                onChange={(event) => setRoomPassword(event.target.value)}
+                disabled={joiningPasswordRoom}
+              />
+              {roomPasswordError ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {roomPasswordError}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPasswordRoom(null)}
+                disabled={joiningPasswordRoom}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={joiningPasswordRoom || !roomPassword}>
+                {joiningPasswordRoom ? "Joining…" : "Join room"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <ChatReportDialog
         open={!!reportTarget}
