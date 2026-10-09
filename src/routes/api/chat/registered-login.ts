@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 import {
+  CODYCHAT_BASE_URL,
   CODYCHAT_ORIGIN,
   codyFetch,
   cookieHeader,
@@ -127,6 +128,7 @@ export const Route = createFileRoute("/api/chat/registered-login")({
                 "application/x-www-form-urlencoded; charset=UTF-8",
               "X-Yaarzo-Bridge-Secret": bridgeSecret,
               Origin: CODYCHAT_ORIGIN,
+              Referer: CODYCHAT_BASE_URL,
             },
             body: bridgeBody,
           });

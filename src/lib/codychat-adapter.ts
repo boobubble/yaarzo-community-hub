@@ -45,7 +45,7 @@ export type CodyRoom = {
   icon?: string;
 };
 
-const allowedCookies = new Set(["PHPSESSID", "tc_userid", "tc_utk", "tc_ssid"]);
+const allowedCookies = new Set(["tc_userid", "tc_utk", "tc_ssid"]);
 
 function base64UrlEncode(bytes: Uint8Array) {
   let binary = "";
