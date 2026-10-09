@@ -86,6 +86,13 @@ test("hardcoded login, member, logout and upload headers use the shared base", (
   }
 });
 
+test("registered login uses the verified Supabase bearer for profile RLS and safe diagnostics", () => {
+  const source = readFileSync(new URL("../routes/api/chat/registered-login.ts", import.meta.url), "utf8");
+  assert.match(source, /global:\s*\{\s*headers:\s*\{\s*Authorization:\s*`Bearer \$\{accessToken\}`/u);
+  assert.match(source, /logRegisteredLoginFailure\(stage, upstreamStatus\)/u);
+  assert.doesNotMatch(source, /console\.error\([^)]*(?:accessToken|bridgeSecret|Cookie|profile)/iu);
+});
+
 test("relative media, avatars and room icons use /chatroom/ without double-prefixing", () => {
   for (const value of ["upload/avatar.png", "/upload/avatar.png", "/chatroom/upload/avatar.png"]) {
     assert.equal(resolveCodyPublicUrl(value), `${CODYCHAT_BASE_URL}upload/avatar.png`);

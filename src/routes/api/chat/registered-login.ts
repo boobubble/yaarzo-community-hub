@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 import {
+  CODYCHAT_ORIGIN,
   codyFetch,
   cookieHeader,
   extractToken,
@@ -11,6 +12,13 @@ import {
   updateCookieJar,
   validateSameOrigin,
 } from "@/lib/codychat-adapter";
+
+function logRegisteredLoginFailure(stage: string, upstreamStatus?: number) {
+  console.error("CodyChat registered login failed", {
+    stage,
+    ...(upstreamStatus ? { upstreamStatus } : {}),
+  });
+}
 
 export const Route = createFileRoute("/api/chat/registered-login")({
   server: {
@@ -53,11 +61,17 @@ export const Route = createFileRoute("/api/chat/registered-login")({
           );
         }
 
+        let stage = "supabase_user_validation";
+        let upstreamStatus: number | undefined;
+
         try {
           const supabase = createClient(supabaseUrl, supabaseKey, {
             auth: {
               autoRefreshToken: false,
               persistSession: false,
+            },
+            global: {
+              headers: { Authorization: `Bearer ${accessToken}` },
             },
           });
 
@@ -73,13 +87,19 @@ export const Route = createFileRoute("/api/chat/registered-login")({
             );
           }
 
-          const { data: profile, error: profileError } = await supabase
+          stage = "supabase_profile_lookup";
+          const {
+            data: profile,
+            error: profileError,
+            status: profileStatus,
+          } = await supabase
             .from("profiles")
             .select("username, gender")
             .eq("id", user.id)
             .single();
 
           if (profileError || !profile?.username) {
+            logRegisteredLoginFailure(stage, profileStatus);
             return Response.json(
               { error: "Yaarzo profile could not be loaded." },
               { status: 502 },
@@ -99,42 +119,50 @@ export const Route = createFileRoute("/api/chat/registered-login")({
             gender,
           });
 
+          stage = "codychat_bridge_request";
           const bridge = await codyFetch("boom_bridge.php", {
             method: "POST",
             headers: {
               "Content-Type":
                 "application/x-www-form-urlencoded; charset=UTF-8",
               "X-Yaarzo-Bridge-Secret": bridgeSecret,
+              Origin: CODYCHAT_ORIGIN,
             },
             body: bridgeBody,
           });
+          upstreamStatus = bridge.status;
 
           let cookies = updateCookieJar(bridge);
 
           if (!bridge.ok) {
+            logRegisteredLoginFailure(stage, upstreamStatus);
             return Response.json(
               { error: "CodyChat Bridge rejected the login." },
               { status: 502 },
             );
           }
 
+          stage = "codychat_bridge_response";
           const bridgeResult = (await bridge.json()) as {
             authenticated?: boolean;
             username?: string;
           };
 
           if (!bridgeResult.authenticated || !bridgeResult.username) {
+            logRegisteredLoginFailure(stage, upstreamStatus);
             return Response.json(
               { error: "CodyChat Bridge did not establish an account." },
               { status: 502 },
             );
           }
 
+          stage = "codychat_session_request";
           const sessionPage = await codyFetch("", {
             headers: {
               Cookie: cookieHeader(cookies),
             },
           });
+          upstreamStatus = sessionPage.status;
 
           cookies = updateCookieJar(sessionPage, cookies);
 
@@ -142,12 +170,14 @@ export const Route = createFileRoute("/api/chat/registered-login")({
           const token = extractToken(html);
 
           if (!isLoggedIn(html) || !token || token === "0") {
+            logRegisteredLoginFailure("codychat_session_validation", upstreamStatus);
             return Response.json(
               { error: "CodyChat did not establish a valid registered session." },
               { status: 502 },
             );
           }
 
+          stage = "session_encryption";
           const envelope = await sealSession(
             {
               cookies,
@@ -174,6 +204,7 @@ export const Route = createFileRoute("/api/chat/registered-login")({
             },
           );
         } catch {
+          logRegisteredLoginFailure(stage, upstreamStatus);
           return Response.json(
             { error: "Registered chat login is unavailable. Please try again." },
             { status: 502 },
