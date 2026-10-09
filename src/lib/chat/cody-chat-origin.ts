@@ -1,9 +1,45 @@
-/** CodyChat Test origin used for API calls and media URLs in Preview. */
-export const CODYCHAT_PUBLIC_ORIGIN = "https://cody-test.yaarzo.com";
-export const CODYCHAT_BASE_URL = `${CODYCHAT_PUBLIC_ORIGIN}/`;
+declare const __YAARZO_CODYCHAT_ORIGIN__: string | undefined;
 
-/** Resolve only same-origin endpoints under the verified root installation. */
-export function resolveCodyEndpointUrl(path: string) {
+export const DEFAULT_CODYCHAT_ORIGIN = "https://cody-test.yaarzo.com";
+const trustedBasePaths = new Map([
+  ["https://cody-test.yaarzo.com", "/"],
+  ["https://chat.yaarzo.com", "/chatroom/"],
+]);
+
+export function validateCodyChatOrigin(value: string) {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("YAARZO_CODYCHAT_ORIGIN must be a trusted HTTPS origin");
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.origin !== value ||
+    !trustedBasePaths.has(parsed.origin)
+  ) {
+    throw new Error("YAARZO_CODYCHAT_ORIGIN must be a trusted HTTPS origin");
+  }
+  return parsed.origin;
+}
+
+const configuredOrigin =
+  typeof __YAARZO_CODYCHAT_ORIGIN__ === "string"
+    ? __YAARZO_CODYCHAT_ORIGIN__
+    : DEFAULT_CODYCHAT_ORIGIN;
+
+export const CODYCHAT_PUBLIC_ORIGIN = validateCodyChatOrigin(configuredOrigin);
+export const CODYCHAT_BASE_URL = `${CODYCHAT_PUBLIC_ORIGIN}${trustedBasePaths.get(CODYCHAT_PUBLIC_ORIGIN)}`;
+
+function baseUrlForOrigin(origin: string) {
+  const trustedOrigin = validateCodyChatOrigin(origin);
+  return `${trustedOrigin}${trustedBasePaths.get(trustedOrigin)}`;
+}
+
+/** Resolve only same-origin endpoints under the verified installation base path. */
+export function resolveCodyEndpointUrl(path: string, origin = CODYCHAT_PUBLIC_ORIGIN) {
+  const baseUrl = baseUrlForOrigin(origin);
+  const trustedOrigin = validateCodyChatOrigin(origin);
   const value = path.trim();
   if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(value)) {
     throw new Error("CodyChat API endpoints must be relative paths");
@@ -36,34 +72,40 @@ export function resolveCodyEndpointUrl(path: string) {
     throw new Error("CodyChat API endpoint escapes its base path");
   }
 
-  const url = new URL(`${normalizedSegments.join("/")}${suffix}`, CODYCHAT_BASE_URL);
-  if (url.origin !== CODYCHAT_PUBLIC_ORIGIN) {
+  const url = new URL(`${normalizedSegments.join("/")}${suffix}`, baseUrl);
+  if (url.origin !== trustedOrigin || !url.pathname.startsWith(new URL(baseUrl).pathname)) {
     throw new Error("CodyChat API endpoint escapes its base path");
   }
   return url.toString();
 }
 
-export function resolveCodyPublicUrl(pathOrUrl: string) {
+export function resolveCodyPublicUrl(pathOrUrl: string, origin = CODYCHAT_PUBLIC_ORIGIN) {
+  const baseUrl = baseUrlForOrigin(origin);
   const value = pathOrUrl.trim();
   if (!value) return "";
   try {
     if (/^https?:\/\//iu.test(value)) {
-      return isSafeCodyPublicUrl(value) ? new URL(value).toString() : "";
+      return isSafeCodyPublicUrl(value, origin) ? new URL(value).toString() : "";
     }
     if (value.startsWith("//")) {
-      const absolute = new URL(value, CODYCHAT_BASE_URL).toString();
-      return isSafeCodyPublicUrl(absolute) ? absolute : "";
+      const absolute = new URL(value, baseUrl).toString();
+      return isSafeCodyPublicUrl(absolute, origin) ? absolute : "";
     }
-    return resolveCodyEndpointUrl(value);
+    return resolveCodyEndpointUrl(value, origin);
   } catch {
     return "";
   }
 }
 
-export function isSafeCodyPublicUrl(url: string) {
+export function isSafeCodyPublicUrl(url: string, origin = CODYCHAT_PUBLIC_ORIGIN) {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "https:" && parsed.origin === CODYCHAT_PUBLIC_ORIGIN;
+    const baseUrl = new URL(baseUrlForOrigin(origin));
+    return (
+      parsed.protocol === "https:" &&
+      parsed.origin === baseUrl.origin &&
+      parsed.pathname.startsWith(baseUrl.pathname)
+    );
   } catch {
     return false;
   }

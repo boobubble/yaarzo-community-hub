@@ -8,6 +8,7 @@ import {
   isSafeCodyPublicUrl,
   resolveCodyEndpointUrl,
   resolveCodyPublicUrl,
+  validateCodyChatOrigin,
 } from "./chat/cody-chat-origin.ts";
 import {
   codyAjaxHeaders,
@@ -37,6 +38,39 @@ test("API paths reject traversal and offsite credential forwarding", () => {
   for (const path of ["../login.php", "/../login.php", "%2e%2e/login.php", "%252e%252e/login.php", "foo/%2f..%2fbar", "https://other.example/login.php", "//other.example/login.php", "https://chat.yaarzo.com/system/action/login.php"]) {
     assert.throws(() => resolveCodyEndpointUrl(path));
   }
+});
+
+test("trusted CodyChat origin selects the matching installation base path", () => {
+  const productionOrigin = "https://chat.yaarzo.com";
+  assert.equal(
+    resolveCodyEndpointUrl("system/action/login.php", productionOrigin),
+    "https://chat.yaarzo.com/chatroom/system/action/login.php",
+  );
+  assert.equal(
+    resolveCodyEndpointUrl("/chatroom/system/action/login.php", productionOrigin),
+    "https://chat.yaarzo.com/chatroom/system/action/login.php",
+  );
+  assert.equal(
+    resolveCodyPublicUrl("/upload/avatar.png", productionOrigin),
+    "https://chat.yaarzo.com/chatroom/upload/avatar.png",
+  );
+  assert.equal(
+    isSafeCodyPublicUrl("https://chat.yaarzo.com/chatroom/upload/avatar.png", productionOrigin),
+    true,
+  );
+  assert.equal(isSafeCodyPublicUrl("https://chat.yaarzo.com/upload/avatar.png", productionOrigin), false);
+  assert.throws(() => validateCodyChatOrigin("http://cody-test.yaarzo.com"));
+  assert.throws(() => validateCodyChatOrigin("https://untrusted.example"));
+  assert.throws(() => validateCodyChatOrigin("https://cody-test.yaarzo.com/path"));
+});
+
+test("Vite reads the non-public origin variable and injects only its validated value", () => {
+  const config = readFileSync(new URL("../../vite.config.ts", import.meta.url), "utf8");
+  assert.match(config, /loadEnv\(mode, process\.cwd\(\), ""\)/u);
+  assert.match(config, /env\["YAARZO_CODYCHAT_ORIGIN"\]/u);
+  assert.match(config, /validateCodyChatOrigin\(/u);
+  assert.match(config, /__YAARZO_CODYCHAT_ORIGIN__:\s*JSON\.stringify\(codyChatOrigin\)/u);
+  assert.doesNotMatch(config, /VITE_CODYCHAT_ORIGIN/u);
 });
 
 test("CodyChat captcha mode is parsed without exposing the provider site key", () => {
