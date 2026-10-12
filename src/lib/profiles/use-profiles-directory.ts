@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { supabase } from "@/lib/supabase";
@@ -22,7 +23,7 @@ export type DirectoryProfile = {
   last_seen: string | null;
 };
 
-export function useProfilesDirectory(enabled: boolean) {
+export function useProfilesDirectory(enabled: boolean, client: SupabaseClient = supabase) {
   const [profiles, setProfiles] = useState<Record<string, DirectoryProfile>>({});
   const [byUsername, setByUsername] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export function useProfilesDirectory(enabled: boolean) {
     }
     setLoading(true);
     setError(null);
-    const { data, error: queryError } = await supabase
+    const { data, error: queryError } = await client
       .from("profiles_directory")
       .select(PROFILES_DIRECTORY_SELECT)
       .order("username", { ascending: true });
@@ -56,7 +57,7 @@ export function useProfilesDirectory(enabled: boolean) {
       setByUsername(names);
     }
     setLoading(false);
-  }, [enabled]);
+  }, [enabled, client]);
 
   useEffect(() => {
     void refresh();
@@ -64,16 +65,16 @@ export function useProfilesDirectory(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return;
-    const ch = supabase
+    const ch = client
       .channel("profiles-directory-chat")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
         void refresh();
       })
       .subscribe();
     return () => {
-      void supabase.removeChannel(ch);
+      void client.removeChannel(ch);
     };
-  }, [enabled, refresh]);
+  }, [enabled, refresh, client]);
 
   const resolveByUsername = useCallback(
     (username: string) => {

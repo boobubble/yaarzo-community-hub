@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
 import { supabase } from "../lib/supabase";
@@ -23,17 +17,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    let previousAccessToken: string | null = null;
 
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
 
+      previousAccessToken = data.session?.access_token ?? null;
       setSession(data.session);
       setReady(true);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // Also propagate SDK-driven expiry / cross-tab logout. Run outside the
+      // Supabase auth callback lock and send only the previous access token.
+      if (event === "SIGNED_OUT" && previousAccessToken) {
+        const accessToken = previousAccessToken;
+        setTimeout(() => {
+          void fetch("/api/chat/grupo-sso", {
+            method: "POST",
+            cache: "no-store",
+            signal: AbortSignal.timeout(5000),
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ operation: "revoke", scope: "local" }),
+          }).catch(() => {});
+        }, 0);
+      }
+      previousAccessToken = nextSession?.access_token ?? null;
       if (!active) return;
 
       setSession(nextSession);

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/feed-island/feed-island.tsx",
+    "src/components/feed/**/*.tsx",
+    "src/components/feed/picker-pointer-tap.ts",
+    "src/lib/feed/**/*.ts"
+  ]
+}

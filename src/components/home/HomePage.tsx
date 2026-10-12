@@ -1,5 +1,5 @@
 ﻿import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, Moon, Rocket, Sun, X } from "lucide-react";
 
 import {
@@ -68,6 +68,71 @@ export function HomePage() {
     [user, goChatroom, openJoin],
   );
 
+  const tryGrupoSso = useCallback(async (onSignedOut: () => void, renewal?: string) => {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+
+    if (!accessToken) {
+      onSignedOut();
+      return;
+    }
+
+    const response = await fetch("/api/chat/grupo-sso", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(renewal ? { renewal } : {}),
+    });
+
+    const result = (await response.json()) as {
+      bridgeUrl?: string;
+      assertion?: string;
+      redirect?: string;
+      error?: string;
+    };
+
+    if (
+      !response.ok ||
+      !result.bridgeUrl ||
+      !result.assertion ||
+      !result.redirect
+    ) {
+      if (renewal) { window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed"); return; }
+      alert(result.error ?? "Grupo test login failed.");
+      return;
+    }
+
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = result.bridgeUrl;
+
+    for (const [name, value] of Object.entries({
+      assertion: result.assertion,
+      redirect: result.redirect,
+    })) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.append(input);
+    }
+
+    document.body.append(form);
+    form.submit();
+  }, []);
+
+  const renewalStarted = useRef(false);
+  useEffect(() => {
+    const state = new URLSearchParams(window.location.search).get("grupo_feed_state");
+    if (!ready || !state || renewalStarted.current) return;
+    renewalStarted.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    void tryGrupoSso(() => window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed"), state)
+      .catch(() => window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed"));
+  }, [ready, tryGrupoSso]);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("yaarzo-welcome-theme");
@@ -76,7 +141,8 @@ export function HomePage() {
       /* ignore */
     }
   }, []);
-
+
+
   useEffect(() => {
     if (!ready) return;
     setCheckingSession(false);
@@ -176,7 +242,9 @@ export function HomePage() {
             </button>
             <button
               type="button"
-              onClick={() => void tryEnterChatroom("signin")}
+              onClick={() =>
+                void tryGrupoSso(() => void tryEnterChatroom("signin"))
+              }
               className={`hidden lg:inline-flex ${headerSignInClass}`}
             >
               Sign In
@@ -338,37 +406,12 @@ export function HomePage() {
             <div className="mx-auto max-w-7xl px-4 py-6 text-center">
         <button
           type="button"
-          onClick={async () => {
-            const { data } = await supabase.auth.getSession();
-            const accessToken = data.session?.access_token;
-
-            if (!accessToken) {
-              alert("Please sign in first.");
-              return;
-            }
-
-            const response = await fetch("/api/chat/native-sso", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-              },
-            });
-
-            const result = (await response.json()) as {
-              url?: string;
-              error?: string;
-            };
-
-            if (!response.ok || !result.url) {
-              alert(result.error ?? "Clean chat test failed.");
-              return;
-            }
-
-            window.location.href = result.url;
-          }}
+          onClick={() =>
+            void tryGrupoSso(() => alert("Please sign in first."))
+          }
           className="rounded-xl bg-white px-5 py-3 font-bold text-black"
         >
-          Test Clean CodyChat
+          Test Grupo Login
         </button>
       </div>
       <HomeFooter />

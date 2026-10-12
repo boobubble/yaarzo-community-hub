@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:feed-island": "vite build --config vite.feed.config.ts",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
+    "test:feed-island": "node --experimental-strip-types --test src/lib/feed/feed-data.test.mjs src/lib/feed/feed-actions.test.mjs src/feed-island/feed-island.test.mjs",
+    "typecheck:feed-island": "tsc --project tsconfig.feed-island.json",
     "format": "prettier --write ."
   },
   "overrides": {
