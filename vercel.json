@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/chatroom",
+      "destination": "https://chatroom-origin.yaarzo.com/chatroom/"
+    },
+    {
+      "source": "/chatroom/:path*",
+      "destination": "https://chatroom-origin.yaarzo.com/chatroom/:path*"
+    },
+    {
+      "source": "/chatrooms",
+      "destination": "https://chatroom-origin.yaarzo.com/chatroom/"
+    },
+    {
+      "source": "/chatrooms/:path*",
+      "destination": "https://chatroom-origin.yaarzo.com/chatroom/:path*"
+    }
+  ]
+}
