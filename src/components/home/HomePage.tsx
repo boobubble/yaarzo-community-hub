@@ -1,5 +1,4 @@
-﻿import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, Moon, Rocket, Sun, X } from "lucide-react";
 
 import {
@@ -24,19 +23,8 @@ import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
 import { HOME_NAV_LINKS } from "@/lib/home/home-routes";
 import { HOME_SEO_H1 } from "@/lib/seo/home-page";
 
-async function hasCodySession(): Promise<boolean> {
-  try {
-    const response = await fetch("/api/chat/session", { cache: "no-store" });
-    const result = (await response.json()) as { authenticated?: boolean };
-    return Boolean(result.authenticated);
-  } catch {
-    return false;
-  }
-}
-
 export function HomePage() {
-  const navigate = useNavigate();
-  const { user, ready } = useAuth();
+  const { ready } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [joinOpen, setJoinOpen] = useState(false);
@@ -44,84 +32,104 @@ export function HomePage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const cfg = HOME_LANDING_CONFIG;
 
-  const goChatroom = useCallback(() => {
-    void navigate({ to: "/chatroom" });
-  }, [navigate]);
-
   const openJoin = useCallback((view: HomeJoinView) => {
     setJoinInitialView(view);
     setJoinOpen(true);
   }, []);
 
-  const tryEnterChatroom = useCallback(
-    async (view: HomeJoinView = "choice") => {
-      if (user) {
-        goChatroom();
-        return;
-      }
-      if (await hasCodySession()) {
-        goChatroom();
-        return;
-      }
-      openJoin(view);
-    },
-    [user, goChatroom, openJoin],
-  );
-
   const tryGrupoSso = useCallback(async (onSignedOut: () => void, renewal?: string) => {
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token;
-
-    if (!accessToken) {
+    const sessionResult = await supabase.auth.getSession().catch(() => null);
+    if (!sessionResult) {
       onSignedOut();
       return;
     }
 
-    const response = await fetch("/api/chat/grupo-sso", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(renewal ? { renewal } : {}),
-    });
+    const session = sessionResult.data.session;
+    const accessToken = session?.access_token;
+    const isAnonymous = Boolean(session?.user?.is_anonymous);
+    const isExpired = Boolean(
+      session?.expires_at && session.expires_at * 1000 <= Date.now(),
+    );
 
-    const result = (await response.json()) as {
-      bridgeUrl?: string;
-      assertion?: string;
-      redirect?: string;
-      error?: string;
-    };
-
-    if (
-      !response.ok ||
-      !result.bridgeUrl ||
-      !result.assertion ||
-      !result.redirect
-    ) {
-      if (renewal) { window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed"); return; }
-      alert(result.error ?? "Grupo test login failed.");
+    if (!accessToken || isAnonymous || isExpired) {
+      onSignedOut();
       return;
     }
 
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = result.bridgeUrl;
+    try {
+      const response = await fetch("/api/chat/grupo-sso", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(renewal ? { renewal } : {}),
+      });
 
-    for (const [name, value] of Object.entries({
-      assertion: result.assertion,
-      redirect: result.redirect,
-    })) {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.append(input);
+      if (response.status === 401) {
+        onSignedOut();
+        return;
+      }
+
+      const result = (await response.json()) as {
+        bridgeUrl?: string;
+        assertion?: string;
+        redirect?: string;
+        error?: string;
+      };
+
+      if (
+        result.error === "Invalid or expired Yaarzo session." ||
+        result.error === "Authentication required."
+      ) {
+        onSignedOut();
+        return;
+      }
+
+      if (
+        !response.ok ||
+        !result.bridgeUrl ||
+        !result.assertion ||
+        !result.redirect
+      ) {
+        if (renewal) {
+          window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed");
+          return;
+        }
+        alert(result.error ?? "Grupo test login failed.");
+        return;
+      }
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = result.bridgeUrl;
+
+      for (const [name, value] of Object.entries({
+        assertion: result.assertion,
+        redirect: result.redirect,
+      })) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = value;
+        form.append(input);
+      }
+
+      document.body.append(form);
+      form.submit();
+    } catch {
+      if (renewal) {
+        window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed");
+        return;
+      }
+      alert("Grupo test login is unavailable.");
     }
-
-    document.body.append(form);
-    form.submit();
   }, []);
+
+  const tryEnterChatroom = useCallback(
+    (view: HomeJoinView = "choice") => tryGrupoSso(() => openJoin(view)),
+    [openJoin, tryGrupoSso],
+  );
 
   const renewalStarted = useRef(false);
   useEffect(() => {
@@ -243,7 +251,7 @@ export function HomePage() {
             <button
               type="button"
               onClick={() =>
-                void tryGrupoSso(() => void tryEnterChatroom("signin"))
+                void tryGrupoSso(() => openJoin("signin"))
               }
               className={`hidden lg:inline-flex ${headerSignInClass}`}
             >
@@ -293,7 +301,7 @@ export function HomePage() {
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
-                  void tryEnterChatroom("signin");
+                  void tryGrupoSso(() => openJoin("signin"));
                 }}
                 className="rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 text-sm font-bold"
               >
@@ -407,7 +415,7 @@ export function HomePage() {
         <button
           type="button"
           onClick={() =>
-            void tryGrupoSso(() => alert("Please sign in first."))
+            void tryGrupoSso(() => openJoin("signin"))
           }
           className="rounded-xl bg-white px-5 py-3 font-bold text-black"
         >
@@ -420,7 +428,7 @@ export function HomePage() {
         open={joinOpen}
         onOpenChange={setJoinOpen}
         initialView={joinInitialView}
-        onChatroomReady={goChatroom}
+        onChatroomReady={() => void tryGrupoSso(() => openJoin("signin"))}
       />
     </div>
   );

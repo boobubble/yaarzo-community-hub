@@ -1,10 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowLeft, LogIn, Sparkles, UserRound } from "lucide-react";
+import { LogIn, Sparkles, UserRound } from "lucide-react";
 
 import { RegisteredAuthPanel } from "@/components/auth/registered-auth-panel";
-import { HomeGuestEntryForm } from "@/components/home/HomeGuestEntryForm";
 import type { HomeJoinView } from "@/components/home/home-entry-context";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +11,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export type HomeEntryView = "choice" | "guest" | "signin" | "signup";
+export const GRUPO_GUEST_LOGIN_PATH = "/chatroom/entry/guest_login";
+
+export type HomeEntryView = "choice" | "signin" | "signup";
 
 function viewToPanel(view: HomeJoinView): HomeEntryView {
-  if (view === "signin" || view === "signup" || view === "guest") return view;
+  if (view === "signin" || view === "signup") return view;
   return "choice";
 }
 
@@ -25,24 +25,24 @@ function ChoiceOption({
   title,
   subtitle,
   onClick,
+  href,
   accent = false,
 }: {
   icon: ReactNode;
   title: string;
   subtitle: string;
-  onClick: () => void;
+  onClick?: () => void;
+  href?: string;
   accent?: boolean;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors hover:bg-muted/50 ${
-        accent
-          ? "border-purple-500/30 bg-purple-500/10"
-          : "border-border bg-card"
-      }`}
-    >
+  const className = `flex w-full items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors hover:bg-muted/50 ${
+    accent
+      ? "border-purple-500/30 bg-purple-500/10"
+      : "border-border bg-card"
+  }`;
+
+  const content = (
+    <>
       <span
         className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
           accent ? "bg-purple-500/20 text-purple-300" : "bg-muted text-foreground"
@@ -54,6 +54,24 @@ function ChoiceOption({
         <span className="block text-sm font-bold">{title}</span>
         <span className="block text-xs text-muted-foreground">{subtitle}</span>
       </span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a href={href} className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={className}
+    >
+      {content}
     </button>
   );
 }
@@ -72,7 +90,13 @@ export function HomeJoinDialog({
   const [panel, setPanel] = useState<HomeEntryView>("choice");
 
   useEffect(() => {
-    if (open) setPanel(viewToPanel(initialView));
+    if (open) {
+      if (initialView === "guest") {
+        window.location.assign(GRUPO_GUEST_LOGIN_PATH);
+        return;
+      }
+      setPanel(viewToPanel(initialView));
+    }
   }, [open, initialView]);
 
   const closeAndEnter = () => {
@@ -85,11 +109,9 @@ export function HomeJoinDialog({
   const headerDescription =
     panel === "choice"
       ? "How would you like to continue?"
-      : panel === "guest"
-        ? "Join the live chatroom in seconds."
-        : panel === "signin"
-          ? "Sign in with your Yaarzo account."
-          : "Create your registered Yaarzo profile.";
+      : panel === "signin"
+        ? "Sign in with your Yaarzo account."
+        : "Create your registered Yaarzo profile.";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +133,7 @@ export function HomeJoinDialog({
                 title="Continue as Guest"
                 subtitle="No account needed"
                 accent
-                onClick={() => setPanel("guest")}
+                href={GRUPO_GUEST_LOGIN_PATH}
               />
               <ChoiceOption
                 icon={<LogIn className="h-5 w-5" />}
@@ -125,22 +147,6 @@ export function HomeJoinDialog({
                 subtitle="Create your Yaarzo profile"
                 onClick={() => setPanel("signup")}
               />
-            </div>
-          ) : null}
-
-          {panel === "guest" ? (
-            <div className="space-y-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="-ml-2 h-8 gap-1 px-2 text-xs"
-                onClick={backToChoice}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Button>
-              <HomeGuestEntryForm onJoined={closeAndEnter} />
             </div>
           ) : null}
 
