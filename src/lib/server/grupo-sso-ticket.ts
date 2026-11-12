@@ -3,6 +3,8 @@ export type GrupoSsoClaims = {
   aud: string;
   sub: string;
   preferred_username: string;
+  email: string;
+  email_verified: true;
   iat: number;
   exp: number;
   jti: string;

@@ -89,6 +89,10 @@ export const Route = createFileRoute("/api/chat/grupo-sso")({
             return noStoreJson({ error: "A valid registered Yaarzo account is required." }, 401);
           }
 
+          if (!user.email || !user.email_confirmed_at) {
+            return noStoreJson({ error: "Verify your Yaarzo email before entering chat." }, 403);
+          }
+
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("username")
@@ -109,6 +113,8 @@ export const Route = createFileRoute("/api/chat/grupo-sso")({
               aud: audience,
               sub: user.id,
               preferred_username: username,
+              email: user.email,
+              email_verified: true,
               iat: now,
               exp: now + TICKET_TTL_SECONDS,
               jti: crypto.randomUUID(),
