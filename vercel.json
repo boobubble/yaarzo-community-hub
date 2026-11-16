@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/chatroom/:path*",
-      "destination": "https://chatroom-origin.yaarzo.com/chatroom/:path*"
+      "source": "/chatroom/:path+",
+      "destination": "https://chatroom-origin.yaarzo.com/chatroom/:path+"
     },
     {
       "source": "/chatrooms",
