@@ -56,6 +56,13 @@ export function HomePage() {
       return;
     }
 
+    // Ordinary chat entry now goes through the Yaarzo-owned /chatroom route.
+    // Feed renewal remains on the legacy bridge below and is intentionally unchanged.
+    if (!renewal) {
+      window.location.assign("/chatroom");
+      return;
+    }
+
     try {
       const response = await fetch("/api/chat/grupo-sso", {
         method: "POST",
