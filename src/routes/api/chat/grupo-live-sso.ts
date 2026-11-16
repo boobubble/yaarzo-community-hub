@@ -54,6 +54,10 @@ export const Route = createFileRoute("/api/chat/grupo-live-sso")({
             return jsonResponse({ error: "Invalid or expired Yaarzo session." }, 401);
           }
 
+          if (!user.email_confirmed_at && !user.confirmed_at) {
+            return jsonResponse({ error: "A verified email is required for live chatroom access." }, 403);
+          }
+
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("username, display_name")
