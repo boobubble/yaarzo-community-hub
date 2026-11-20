@@ -1,10 +1,11 @@
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 import { depositFeedHandoff, verifyFeedRenewal } from "@/lib/server/grupo-feed-handoff";
 
 const GRUPO_BRIDGE_URL = "https://grupo-test.yaarzo.com/supabase_bridge/";
+const GRUPO_SSO_CONSUME_URL = "https://chatroom-origin.yaarzo.com/sso/consume.php";
 
 function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, {
@@ -22,11 +23,16 @@ export const Route = createFileRoute("/api/chat/grupo-sso")({
         }
 
         const secret = process.env["GRUPO_SUPABASE_BRIDGE_SECRET"];
+        const ssoSecret = process.env["GRUPO_SSO_SHARED_SECRET"];
         const supabaseUrl = process.env["VITE_SUPABASE_URL"];
         const supabaseKey = process.env["VITE_SUPABASE_ANON_KEY"];
 
-        if (!secret || secret.length < 32 || !supabaseUrl || !supabaseKey) {
-          return jsonResponse({ error: "Grupo test login is not configured." }, 503);
+        if (
+          !secret || secret.length < 32 ||
+          !ssoSecret || ssoSecret.length < 32 ||
+          !supabaseUrl || !supabaseKey
+        ) {
+          return jsonResponse({ error: "Grupo SSO is not configured." }, 503);
         }
 
         const authorization = request.headers.get("authorization");
@@ -108,6 +114,15 @@ export const Route = createFileRoute("/api/chat/grupo-sso")({
             return jsonResponse({ error: "Yaarzo profile could not be loaded." }, 502);
           }
 
+          const email = typeof user.email === "string" ? user.email.trim().toLowerCase() : "";
+          const emailVerified = Boolean(user.email_confirmed_at || user.confirmed_at);
+          if (!renewal && !emailVerified) {
+            return jsonResponse({ error: "Verify your email before entering Grupo chat." }, 403);
+          }
+          if (!renewal && Buffer.byteLength(username, "utf8") > 80) {
+            return jsonResponse({ error: "Your Yaarzo username is too long for Grupo." }, 422);
+          }
+
           const payload = {
             sub: user.id,
             aud: process.env["GRUPO_SUPABASE_BRIDGE_AUDIENCE"] || "grupo-test.yaarzo.com",
@@ -122,6 +137,25 @@ export const Route = createFileRoute("/api/chat/grupo-sso")({
             email: user.email || "",
             email_verified: Boolean(user.email_confirmed_at || user.confirmed_at),
           };
+
+          let ticket: string | undefined;
+          if (!renewal) {
+            const jwtHeader = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+            const jwtClaims = Buffer.from(JSON.stringify({
+              iss: "https://www.yaarzo.com",
+              aud: "chatroom-origin.yaarzo.com",
+              sub: user.id,
+              jti: randomUUID(),
+              email,
+              email_verified: emailVerified,
+              preferred_username: username,
+              iat: now,
+              exp: now + 60,
+            })).toString("base64url");
+            const signingInput = `${jwtHeader}.${jwtClaims}`;
+            const signature = createHmac("sha256", ssoSecret).update(signingInput).digest("base64url");
+            ticket = `${signingInput}.${signature}`;
+          }
 
           const feedPayload = {
             ...payload,
@@ -144,10 +178,19 @@ export const Route = createFileRoute("/api/chat/grupo-sso")({
             assertion = sign(payload);
             feedHandoff = false;
           }
+          if (renewal) {
+            // Keep the existing Feed renewal protocol on its legacy bridge endpoint.
+            return jsonResponse({
+              bridgeUrl: GRUPO_BRIDGE_URL,
+              assertion,
+              redirect: renewal.redirect,
+              feedHandoff,
+            });
+          }
+
           return jsonResponse({
-            bridgeUrl: GRUPO_BRIDGE_URL,
-            assertion,
-            redirect: renewal?.redirect ?? "/",
+            consumeUrl: GRUPO_SSO_CONSUME_URL,
+            ticket,
             feedHandoff,
           });
         } catch {
