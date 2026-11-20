@@ -56,13 +56,6 @@ export function HomePage() {
       return;
     }
 
-    // Ordinary chat entry now goes through the Yaarzo-owned /chatroom route.
-    // Feed renewal remains on the legacy bridge below and is intentionally unchanged.
-    if (!renewal) {
-      window.location.assign("/chatroom");
-      return;
-    }
-
     try {
       const response = await fetch("/api/chat/grupo-sso", {
         method: "POST",
@@ -79,6 +72,8 @@ export function HomePage() {
       }
 
       const result = (await response.json()) as {
+        consumeUrl?: string;
+        ticket?: string;
         bridgeUrl?: string;
         assertion?: string;
         redirect?: string;
@@ -93,28 +88,40 @@ export function HomePage() {
         return;
       }
 
-      if (
-        !response.ok ||
-        !result.bridgeUrl ||
-        !result.assertion ||
-        !result.redirect
-      ) {
+      if (!response.ok) {
         if (renewal) {
           window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed");
           return;
         }
-        alert(result.error ?? "Grupo test login failed.");
+        alert(result.error ?? "Grupo SSO login failed.");
         return;
       }
 
       const form = document.createElement("form");
       form.method = "POST";
-      form.action = result.bridgeUrl;
 
-      for (const [name, value] of Object.entries({
-        assertion: result.assertion,
-        redirect: result.redirect,
-      })) {
+      const fields: Record<string, string> = {};
+      if (renewal) {
+        if (!result.bridgeUrl || !result.assertion || !result.redirect) {
+          window.location.replace("https://grupo-test.yaarzo.com/#feed-renew-failed");
+          return;
+        }
+        // Feed renewal continues to use its existing bridge contract.
+        form.action = result.bridgeUrl;
+        fields.assertion = result.assertion;
+        fields.redirect = result.redirect;
+      } else {
+        if (!result.consumeUrl || !result.ticket) {
+          alert(result.error ?? "Grupo SSO ticket was not created.");
+          return;
+        }
+        // Ordinary login posts a signed JWT ticket to the VPS receiver.
+        // The browser visits the .yaarzo.com origin so shared-domain Grupo cookies can be set.
+        form.action = result.consumeUrl;
+        fields.ticket = result.ticket;
+      }
+
+      for (const [name, value] of Object.entries(fields)) {
         const input = document.createElement("input");
         input.type = "hidden";
         input.name = name;
