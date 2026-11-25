@@ -10,10 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ChatroomRouteImport } from './routes/chatroom'
 import { Route as ApiAuthUsernameLoginRouteImport } from './routes/api/auth/username-login'
 import { Route as ApiChatCapabilitiesRouteImport } from './routes/api/chat/capabilities'
 import { Route as ApiChatEmoticonsRouteImport } from './routes/api/chat/emoticons'
+import { Route as ApiChatGrupoSsoRouteImport } from './routes/api/chat/grupo-sso'
 import { Route as ApiChatGuestLoginRouteImport } from './routes/api/chat/guest-login'
 import { Route as ApiChatLogoutRouteImport } from './routes/api/chat/logout'
 import { Route as ApiChatMembersRouteImport } from './routes/api/chat/members'
@@ -35,11 +35,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ChatroomRoute = ChatroomRouteImport.update({
-  id: '/chatroom',
-  path: '/chatroom',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAuthUsernameLoginRoute = ApiAuthUsernameLoginRouteImport.update({
   id: '/api/auth/username-login',
   path: '/api/auth/username-login',
@@ -53,6 +48,11 @@ const ApiChatCapabilitiesRoute = ApiChatCapabilitiesRouteImport.update({
 const ApiChatEmoticonsRoute = ApiChatEmoticonsRouteImport.update({
   id: '/api/chat/emoticons',
   path: '/api/chat/emoticons',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatGrupoSsoRoute = ApiChatGrupoSsoRouteImport.update({
+  id: '/api/chat/grupo-sso',
+  path: '/api/chat/grupo-sso',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatGuestLoginRoute = ApiChatGuestLoginRouteImport.update({
@@ -135,10 +135,10 @@ const ApiChatPrivateMessagesRoute = ApiChatPrivateMessagesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/chatroom': typeof ChatroomRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
+  '/api/chat/grupo-sso': typeof ApiChatGrupoSsoRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
@@ -157,10 +157,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/chatroom': typeof ChatroomRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
+  '/api/chat/grupo-sso': typeof ApiChatGrupoSsoRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
@@ -180,10 +180,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/chatroom': typeof ChatroomRoute
   '/api/auth/username-login': typeof ApiAuthUsernameLoginRoute
   '/api/chat/capabilities': typeof ApiChatCapabilitiesRoute
   '/api/chat/emoticons': typeof ApiChatEmoticonsRoute
+  '/api/chat/grupo-sso': typeof ApiChatGrupoSsoRoute
   '/api/chat/guest-login': typeof ApiChatGuestLoginRoute
   '/api/chat/logout': typeof ApiChatLogoutRoute
   '/api/chat/members': typeof ApiChatMembersRoute
@@ -204,10 +204,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/chatroom'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
     | '/api/chat/emoticons'
+    | '/api/chat/grupo-sso'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
     | '/api/chat/members'
@@ -226,10 +226,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/chatroom'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
     | '/api/chat/emoticons'
+    | '/api/chat/grupo-sso'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
     | '/api/chat/members'
@@ -248,10 +248,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/chatroom'
     | '/api/auth/username-login'
     | '/api/chat/capabilities'
     | '/api/chat/emoticons'
+    | '/api/chat/grupo-sso'
     | '/api/chat/guest-login'
     | '/api/chat/logout'
     | '/api/chat/members'
@@ -271,10 +271,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ChatroomRoute: typeof ChatroomRoute
   ApiAuthUsernameLoginRoute: typeof ApiAuthUsernameLoginRoute
   ApiChatCapabilitiesRoute: typeof ApiChatCapabilitiesRoute
   ApiChatEmoticonsRoute: typeof ApiChatEmoticonsRoute
+  ApiChatGrupoSsoRoute: typeof ApiChatGrupoSsoRoute
   ApiChatGuestLoginRoute: typeof ApiChatGuestLoginRoute
   ApiChatLogoutRoute: typeof ApiChatLogoutRoute
   ApiChatMembersRoute: typeof ApiChatMembersRoute
@@ -301,13 +301,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/chatroom': {
-      id: '/chatroom'
-      path: '/chatroom'
-      fullPath: '/chatroom'
-      preLoaderRoute: typeof ChatroomRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/auth/username-login': {
       id: '/api/auth/username-login'
       path: '/api/auth/username-login'
@@ -327,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/api/chat/emoticons'
       fullPath: '/api/chat/emoticons'
       preLoaderRoute: typeof ApiChatEmoticonsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/grupo-sso': {
+      id: '/api/chat/grupo-sso'
+      path: '/api/chat/grupo-sso'
+      fullPath: '/api/chat/grupo-sso'
+      preLoaderRoute: typeof ApiChatGrupoSsoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat/guest-login': {
@@ -439,10 +439,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ChatroomRoute: ChatroomRoute,
   ApiAuthUsernameLoginRoute: ApiAuthUsernameLoginRoute,
   ApiChatCapabilitiesRoute: ApiChatCapabilitiesRoute,
   ApiChatEmoticonsRoute: ApiChatEmoticonsRoute,
+  ApiChatGrupoSsoRoute: ApiChatGrupoSsoRoute,
   ApiChatGuestLoginRoute: ApiChatGuestLoginRoute,
   ApiChatLogoutRoute: ApiChatLogoutRoute,
   ApiChatMembersRoute: ApiChatMembersRoute,

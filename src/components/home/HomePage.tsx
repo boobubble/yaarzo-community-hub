@@ -1,5 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Menu, Moon, Rocket, Sun, X } from "lucide-react";
 
 import {
@@ -19,47 +18,93 @@ import { HomePoetrySeo } from "@/components/home/sections/HomePoetry";
 import { PillAvatar } from "@/components/home/welcome-primitives";
 import { WELCOME_THEME_CSS } from "@/components/home/welcome-theme-css";
 import { useAuth } from "@/contexts/auth-context";
+import { supabase } from "@/lib/supabase";
 import { HOME_LANDING_CONFIG } from "@/lib/home/landing-config";
 import { HOME_NAV_LINKS } from "@/lib/home/home-routes";
 import { HOME_SEO_H1 } from "@/lib/seo/home-page";
 
-async function hasCodySession(): Promise<boolean> {
-  try {
-    const response = await fetch("/api/chat/session", { cache: "no-store" });
-    const result = (await response.json()) as { authenticated?: boolean };
-    return Boolean(result.authenticated);
-  } catch {
-    return false;
-  }
-}
-
 export function HomePage() {
-  const navigate = useNavigate();
   const { user, ready } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinInitialView, setJoinInitialView] = useState<HomeJoinView>("choice");
   const [checkingSession, setCheckingSession] = useState(true);
+  const handoffStarted = useRef(false);
   const cfg = HOME_LANDING_CONFIG;
-
-  const goChatroom = useCallback(() => {
-    void navigate({ to: "/chatroom" });
-  }, [navigate]);
 
   const openJoin = useCallback((view: HomeJoinView) => {
     setJoinInitialView(view);
     setJoinOpen(true);
   }, []);
 
-  const tryEnterChatroom = useCallback(
-    async (view: HomeJoinView = "choice") => {
-      if (user) {
-        goChatroom();
+  const goChatroom = useCallback(async () => {
+    if (handoffStarted.current) return;
+    handoffStarted.current = true;
+
+    const resumeAtHome = () => {
+      handoffStarted.current = false;
+      setCheckingSession(false);
+    };
+
+    try {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      const accessToken = session?.access_token;
+
+      if (!accessToken || session.user.is_anonymous) {
+        resumeAtHome();
+        openJoin("signin");
         return;
       }
-      if (await hasCodySession()) {
-        goChatroom();
+
+      const response = await fetch("/api/chat/grupo-sso", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}),
+      });
+      const result = (await response.json()) as {
+        consumeUrl?: string;
+        ticket?: string;
+        error?: string;
+      };
+
+      if (response.status === 401) {
+        resumeAtHome();
+        openJoin("signin");
+        return;
+      }
+
+      if (!response.ok || !result.consumeUrl || !result.ticket) {
+        resumeAtHome();
+        alert(result.error ?? "Grupo login failed.");
+        return;
+      }
+
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = result.consumeUrl;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "ticket";
+      input.value = result.ticket;
+      form.append(input);
+      document.body.append(form);
+      form.submit();
+    } catch {
+      resumeAtHome();
+      alert("Grupo login is unavailable. Please try again.");
+    }
+  }, [openJoin]);
+
+  const tryEnterChatroom = useCallback(
+    (view: HomeJoinView = "choice") => {
+      if (user) {
+        void goChatroom();
         return;
       }
       openJoin(view);
@@ -80,30 +125,12 @@ export function HomePage() {
     if (!ready) return;
 
     if (user) {
-      void navigate({ to: "/chatroom", replace: true });
+      void goChatroom();
       return;
     }
 
-    let active = true;
-    void hasCodySession()
-      .then((authenticated) => {
-        if (!active) return;
-        if (authenticated) {
-          void navigate({ to: "/chatroom", replace: true });
-        }
-      })
-      .finally(() => {
-        if (active) setCheckingSession(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [ready, user, navigate]);
-
-  if (ready && user) {
-    return null;
-  }
+    setCheckingSession(false);
+  }, [ready, user, goChatroom]);
 
   if (checkingSession && ready) {
     return (
@@ -364,7 +391,7 @@ export function HomePage() {
         open={joinOpen}
         onOpenChange={setJoinOpen}
         initialView={joinInitialView}
-        onChatroomReady={goChatroom}
+        onChatroomReady={() => void goChatroom()}
       />
     </div>
   );

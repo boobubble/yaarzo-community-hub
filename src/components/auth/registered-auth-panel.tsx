@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { provisionRegisteredCodySession } from "@/lib/auth/enter-chatroom";
 import { supabase } from "@/lib/supabase";
 
 export function RegisteredAuthPanel({
@@ -38,15 +37,6 @@ export function RegisteredAuthPanel({
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
-
-  const finishAuth = async () => {
-    const bridged = await provisionRegisteredCodySession();
-    if (!bridged) {
-      setError("Signed in, but CodyChat bridge is unavailable. Try again.");
-      return;
-    }
-    onSuccess();
-  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -110,7 +100,7 @@ export function RegisteredAuthPanel({
           }
         }
 
-        await finishAuth();
+        onSuccess();
         return;
       }
 
@@ -140,7 +130,7 @@ export function RegisteredAuthPanel({
       }
 
       if (signUpData.session) {
-        await finishAuth();
+        onSuccess();
         return;
       }
 
